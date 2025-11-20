@@ -2,6 +2,12 @@
 // Questo file raccoglie funzioni di supporto per simulare l'evoluzione di un
 // portafoglio in base a contributi periodici e rendimenti mensili.
 
+// Sequenza di rendimenti simulati utilizzata da calculateReturnsByMonth.
+// Viene rigenerata ad ogni renderDashboard per congelare un percorso unico
+// (mock) di rendimenti mensili per asset class; in seguito verrà sostituita dal
+// moltiplicatore GBM reale.
+let gbmReturnsByMonth = {};
+
 // Calcola il capitale totale dopo "i" mesi sommando al capitale iniziale la
 // contribuzione mensile. Si appoggia alle variabili globali
 // `initialInvestment` e `monthlyContribution` definite altrove.
@@ -42,6 +48,25 @@ function calculateInvestmentComponents(allocation, initialInvestment) {
 }
 
 
+// Genera una sequenza congelata di rendimenti mensili (mock) per ogni asset class.
+// La sequenza è indicizzata per mese e asset e viene letta da calculateReturnsByMonth
+// così che tutte le chiamate a calculatePortfolioValue condividano lo stesso percorso
+// durante un renderDashboard. In questa fase i moltiplicatori sono statici; il GBM
+// reale sostituirà la logica di assegnazione dei valori mock.
+function generateSimulatedReturns(allocation, timeHorizon) {
+    const numeroMesi = timeHorizon * 12;
+    gbmReturnsByMonth = [];
+
+    for (let mese = 0; mese <= numeroMesi; mese++) {
+        gbmReturnsByMonth[mese] = {};
+
+        Object.keys(allocation).forEach(assetClass => {
+            const mockReturn = assetClass === 'azionarioGlobale' ? 1.01 : 1.00;
+            gbmReturnsByMonth[mese][assetClass] = mockReturn;
+        });
+    }
+}
+
 
 /* calculateReturnsByMonth
    Riceve un indice di mese e un array di oggetti { assetClass, calculateReturn }
@@ -54,7 +79,10 @@ function calculateReturnsByMonth(mese, returnFunctions) {
         const { assetClass, calculateReturn } = func;
 
         // Calcola il rendimento per l'asset class utilizzando il mese come input
-        const returnValue = calculateReturn(mese);
+        const returnValue =
+            gbmReturnsByMonth?.[mese]?.[assetClass] !== undefined
+                ? gbmReturnsByMonth[mese][assetClass]
+                : calculateReturn(mese);
 
         return {
             assetClass: assetClass,

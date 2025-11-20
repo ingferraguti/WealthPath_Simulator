@@ -11,8 +11,9 @@
           WealthPath Simulator
    Analysis and simulations for 
         informed financial decisions
-```
-[Analisi e simulazioni per decisioni finanziarie consapevoli] 
+
+Analisi e simulazioni per decisioni finanziarie consapevoli
+``` 
 
 
 ---

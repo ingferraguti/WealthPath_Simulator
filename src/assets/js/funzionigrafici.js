@@ -4,7 +4,7 @@
 // Funzione per calcolare i dati del grafico a ciambella
 function getDoughnutData() {
     return {
-        labels: Object.values(allocationLabel),
+        labels: Object.keys(allocation).map(assetKey => getAllocationDisplayLabel(assetKey)),
         datasets: [
             {
                 data: Object.values(allocation),

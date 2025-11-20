@@ -42,6 +42,17 @@ const allocationLabel = {
 };
 
 
+function getAllocationDisplayLabel(assetKey) {
+    const baseLabel = allocationLabel[assetKey] || assetKey;
+    const { currency, hedged } = currencyInfo[assetKey] || {};
+
+    const currencySymbol = currency === "EUR" ? "€" : currency === "USD" ? "$" : "";
+    const symbolParts = [currencySymbol, hedged ? "🛡️" : null].filter(Boolean).join(" ");
+
+    return symbolParts ? `${baseLabel} (${symbolParts})` : baseLabel;
+}
+
+
 function getOroPerformance() {
     // Genera un numero casuale uniforme tra 0 e 1
     const random = Math.random();

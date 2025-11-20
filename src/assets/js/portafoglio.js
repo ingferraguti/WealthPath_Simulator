@@ -87,7 +87,7 @@ function addMonthlyContribution(portafoglio, allocation, monthlyContribution) {
     // Modifica direttamente il valore di investment nel portafoglio
     portafoglio.forEach(asset => {
         // Trova la percentuale di allocazione per l'asset class
-        const assetAllocation = allocation[asset.assetClass.toLowerCase()] || 0;
+        const assetAllocation = allocation[asset.assetClass] || 0;
 
         // Calcola la quota mensile da aggiungere all'investment
         const contribution = (assetAllocation / 100) * monthlyContribution;

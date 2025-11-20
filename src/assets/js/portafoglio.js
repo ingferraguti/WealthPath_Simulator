@@ -1,47 +1,29 @@
 // FUNZIONI CALCOLO PORTAFOGLIO
+// Questo file raccoglie funzioni di supporto per simulare l'evoluzione di un
+// portafoglio in base a contributi periodici e rendimenti mensili.
 
-
+// Calcola il capitale totale dopo "i" mesi sommando al capitale iniziale la
+// contribuzione mensile. Si appoggia alle variabili globali
+// `initialInvestment` e `monthlyContribution` definite altrove.
 function calculateContribValue(i) {
-	return initialInvestment + (monthlyContribution * i);
+        return initialInvestment + (monthlyContribution * i);
 }
 
 
-//dumbMonthlyContributionAllocation
+// Distribuisce la contribuzione mensile in base all'allocazione percentuale
+// dell'asset class specificata. Usa i valori globali `allocation` e
+// `monthlyContribution`.
 function dumbMCA (assetClass){
-	return monthlyContribution * (allocation[assetClass] / 100);
+        return monthlyContribution * (allocation[assetClass] / 100);
 }
 
 
 
-/*    calculateInvestmentComponents
-
-// Esempio di utilizzo
-const allocation = {
-    azionarioGlobale: 30,
-    obblGovEU10: 20,
-    obblGovEU3: 20,
-    obblEUInflLinked: 15,
-    obblCorporate: 10,
-    materiePrime: 5,
-    oro: 10,
-};
-
-const initialInvestment = 10000;
-
-// Calcolo del portafoglio
-const portafoglio = calculateInvestmentComponents(allocation, initialInvestment);
-
-
-OUT: 
-[
-    { assetClass: "Azioni", investment: 5000 },
-    { assetClass: "Obbligazioni", investment: 3000 },
-    { assetClass: "Oro", investment: 1000 },
-    { assetClass: "Cash", investment: 1000 }
-]
-
-si può usare per la allocazione iniziale e per simulare un ribilanciamento
-
+/* calculateInvestmentComponents
+   Suddivide l'investimento iniziale fra le asset class indicate in `allocation`.
+   Controlla che la somma delle percentuali sia esattamente 100 e restituisce un
+   array di oggetti { assetClass, investment } che rappresentano il portafoglio
+   allocato. Può essere richiamata sia per inizializzare sia per ribilanciare.
 */
 function calculateInvestmentComponents(allocation, initialInvestment) {
     // Verifica che la somma delle allocazioni sia pari a 100
@@ -61,29 +43,11 @@ function calculateInvestmentComponents(allocation, initialInvestment) {
 
 
 
-/*   calculateReturnsByMonth
-
-// Esempio di utilizzo
-const mese = 6; 
-
-// Array di funzioni per calcolare i rendimenti
-const returnFunctions = [
-   ...
-];
-
-// Calcolo dei rendimenti
-const returns = calculateReturnsByMonth(mese, returnFunctions);
-
-OUT:
-[
-    { assetClass: "Azioni", return: 0.0594 },
-    { assetClass: "Obbligazioni", return: 0.0249 },
-    { assetClass: "Oro", return: 0.0335 },
-    { assetClass: "Cash", return: 0.01 }
-]
-
+/* calculateReturnsByMonth
+   Riceve un indice di mese e un array di oggetti { assetClass, calculateReturn }
+   e costruisce i rendimenti chiamando `calculateReturn(mese)` per ogni asset
+   class. I valori prodotti alimentano calculatePortfolioReturns.
 */
-
 function calculateReturnsByMonth(mese, returnFunctions) {
     // Calcola i rendimenti per ciascun asset class utilizzando le funzioni fornite
     const returns = returnFunctions.map(func => {
@@ -107,35 +71,12 @@ function calculateReturnsByMonth(mese, returnFunctions) {
 
 
 
-/*   addMonthlyContribution
-
-
-// Esempio di utilizzo
-const portafoglio = [
-    { assetClass: "azionarioGlobale", investment: 5000 },
-    { assetClass: "obblGovEU10", investment: 3000 },
-    { assetClass: "oro", investment: 1000 },
-    { assetClass: "cash", investment: 1000 }
-];
-
-const allocation = {
-    azionarioGlobale: 30,
-    obblGovEU10: 20,
-    obblGovEU3: 20,
-    obblEUInflLinked: 15,
-    obblCorporate: 10,
-    materiePrime: 5,
-    oro: 10,
-};
-
-const monthlyContribution = 1000;
-
-// Aggiorna il portafoglio con la contribuzione mensile
-const updatedPortafoglio = addMonthlyContribution(portafoglio, allocation, monthlyContribution);
-
+/* addMonthlyContribution
+   Aggiunge la contribuzione mensile agli asset già presenti in `portafoglio`.
+   La quota da distribuire su ogni asset class dipende dall'allocazione
+   percentuale definita in `allocation`. Lavora in-place aggiornando
+   direttamente le proprietà `investment`.
 */
-
-
 function addMonthlyContribution(portafoglio, allocation, monthlyContribution) {
     // Calcola la somma totale delle allocazioni nell'oggetto allocation
     const totalAllocation = Object.values(allocation).reduce((sum, percentage) => sum + percentage, 0);
@@ -168,9 +109,10 @@ function addMonthlyContribution(portafoglio, allocation, monthlyContribution) {
 
 
 
-/*
-
-
+/* calculatePortfolioReturns
+   Combina il portafoglio corrente con i rendimenti calcolati per ciascuna
+   asset class. Crea un nuovo array in cui `investment` è aggiornato
+   moltiplicando il capitale attuale per il rendimento del mese.
 
 // Esempio di utilizzo
 const portafoglio = [
@@ -231,10 +173,12 @@ function calculateTotalInvestment(portafoglio) {
 }
 
 
+// Simula mese per mese l'andamento del portafoglio applicando contributi e rendimenti
+// calcolati da `returnFunctions`. Utilizza le variabili globali allocation,
+// initialInvestment e monthlyContribution.
 function calculatePortfolioValue(mese) {
-	
-	
-	let portafoglio = calculateInvestmentComponents(allocation, initialInvestment);
+
+        let portafoglio = calculateInvestmentComponents(allocation, initialInvestment);
     
 	for (let i = 0; i <= mese; i++)  {
 		//rendimenti di questo mese
@@ -245,8 +189,8 @@ function calculatePortfolioValue(mese) {
 		//bilanciamento annuale
 		//if (i % 12 === 0) {portafoglio = calculateInvestmentComponents(allocation, calculateTotalInvestment(portafoglio));}
 		
-		//applichiamo i rendimenti al portafoglio
-		portafoglio = calculatePortfolioReturns(portafoglio, returns)
+                //applichiamo i rendimenti al portafoglio
+                portafoglio = calculatePortfolioReturns(portafoglio, returns)
 		
 		
 	}
@@ -260,7 +204,8 @@ function calculatePortfolioValue(mese) {
 
 // Funzione per calcolare il valore del portafoglio considerando le performance precedenti
 // calculatePortfolioValue( MESE )
-
+// Variante semplificata che separa componente azionaria, oro e obbligazionaria
+// e applica i rapporti di prezzo mensili alla sola parte azionaria.
 
 function calculatePortfolioValue2(i) {
 	
@@ -283,8 +228,8 @@ function calculatePortfolioValue2(i) {
     
 	else{
 		
-			// Itera fino al mese 'i' per calcolare il valore del portafoglio mese per mese
-			for (let month = 0; month <= i; month++) {
+                        // Itera fino al mese 'i' per calcolare il valore del portafoglio mese per mese
+                        for (let month = 0; month <= i; month++) {
 		
 			// Aggiorna il valore della parte azionaria del portafoglio applicando il rendimento del mese corrente
 			azionariaValue *= priceRatios[month % priceRatios.length];
@@ -297,7 +242,8 @@ function calculatePortfolioValue2(i) {
        
 			// Aggiorna il valore totale del portafoglio sommando i valori azionari, obbligazionari e i contributi mensili
 			totalValue = azionariaValue + obbligazionariaValue + monthlyAzionariaContribution + monthlyObbligazionariaContribution;
-		
+
+			// Accumula i contributi mensili sulle rispettive componenti per il mese successivo
 			azionariaValue += monthlyAzionariaContribution;
 			obbligazionariaValue += monthlyObbligazionariaContribution
 		}

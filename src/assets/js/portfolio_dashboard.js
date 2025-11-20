@@ -44,6 +44,7 @@ function randomizePerformance() {
 
 // Funzione per rendere il dashboard
 function renderDashboard() {
+    generateSimulatedReturns(allocation, timeHorizon);
     document.getElementById('allocationbox').innerHTML = `
         <div class="portfolio-dashboard container">
             <!--<h1 class="text-center my-4">Data Dashboard per l'Asset Allocation del Portafoglio</h1>-->

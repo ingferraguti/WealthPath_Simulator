@@ -20,6 +20,17 @@ const allocation = {
 };
 
 
+const currencyInfo = {
+  azionarioGlobale: { currency: "USD", hedged: false },
+  obblGovEU10: { currency: "EUR", hedged: true },
+  obblGovEU3: { currency: "EUR", hedged: true },
+  obblEUInflLinked: { currency: "EUR", hedged: true },
+  obblCorporate: { currency: "EUR", hedged: true },
+  materiePrime: { currency: "USD", hedged: false },
+  oro: { currency: "USD", hedged: false },
+};
+
+
 const allocationLabel = {
             azionarioGlobale: 'Azionario Globale',
             obblGovEU10: 'Obbl. GOV EU 10+ Y',

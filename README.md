@@ -1,6 +1,6 @@
 # WealthPath_Simulator
 
-
+```
 ██╗    ██╗███████╗ █████╗ ██╗     ████████╗██╗  ██╗
 ██║    ██║██╔════╝██╔══██╗██║     ╚══██╔══╝██║  ██║
 ██║ █╗ ██║█████╗  ███████║██║        ██║   ███████║
@@ -11,7 +11,7 @@
           WealthPath Simulator
    Analysis and simulations for 
         informed financial decisions
-
+```
 [Analisi e simulazioni per decisioni finanziarie consapevoli] 
 
 
@@ -49,7 +49,7 @@ WealthPath Simulator usa un modello di Geometric Brownian Motion per generare sc
 S(t) = S(0) * exp( (μ − 0.5σ²)t + σ * Wt )
 
 
-🤝 Contributi
+### 🤝 Contributi
 
 Le pull-request sono benvenute.
 Suggerimenti, fix e nuove funzionalità sono apprezzati.

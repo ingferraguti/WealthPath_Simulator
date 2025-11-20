@@ -17,6 +17,14 @@ function wsx(mese){
 }
 
 function creaTabella(numeroMesi) {
+            // Pulisce il contenitore prima di generare una nuova tabella mensile
+            const tableContainer = document.getElementById('table-container');
+            if (!tableContainer) {
+                return;
+            }
+
+            tableContainer.innerHTML = '';
+
             // Crea la tabella e l'intestazione
             const table = document.createElement('table');
             table.border = 1;
@@ -65,7 +73,7 @@ function creaTabella(numeroMesi) {
             }
 
             // Aggiungi la tabella al contenitore esistente nel DOM
-            document.getElementById('table-container').appendChild(table);
+            tableContainer.appendChild(table);
         }
 		
 		
@@ -73,6 +81,14 @@ function creaTabella(numeroMesi) {
 		
 		
 function creaTabella2(numeroAnni) {
+            // Pulisce il contenitore prima di generare una nuova tabella annuale
+            const annualTableContainer = document.getElementById('tablecontaineranno');
+            if (!annualTableContainer) {
+                return;
+            }
+
+            annualTableContainer.innerHTML = '';
+
             // Crea la tabella e l'intestazione
             const table2 = document.createElement('table');
             table2.border = 1;
@@ -91,7 +107,7 @@ function creaTabella2(numeroAnni) {
 			
 			
 			let  incremento=0;
-			
+
             // Popola la tabella con i dati
             const tbody = table2.createTBody();
             for (let mese = 0; mese <= numeroAnni; mese++) {
@@ -122,7 +138,7 @@ function creaTabella2(numeroAnni) {
             }
 
             // Aggiungi la tabella al contenitore esistente nel DOM
-            document.getElementById('tablecontaineranno').appendChild(table2);
+            annualTableContainer.appendChild(table2);
         }
 		
 		

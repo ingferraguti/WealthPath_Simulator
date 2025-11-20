@@ -58,8 +58,8 @@ function renderDashboard() {
                         </div>
 						-->
 						
-						<h4 class=" font-weight-bold">
-							${allocation[asset]} % &nbsp;&nbsp; ${allocationLabel[asset]}
+                                                <h4 class=" font-weight-bold">
+                                                        ${allocation[asset]} % &nbsp;&nbsp; ${getAllocationDisplayLabel(asset)}
 							<span class="float-right"> 
 						       <input type="number" class="form-range" min="0" max="94" value="${allocation[asset]}" 
 								onkeydown="return false"  oninput="handleAllocationChange('${asset}', this.value)" />

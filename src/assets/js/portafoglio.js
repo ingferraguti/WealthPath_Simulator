@@ -290,7 +290,11 @@ function calculatePortfolioValue(state, mese) {
 
         let portafoglio = calculateInvestmentComponents(allocation, initialInvestment);
 
-        for (let i = 0; i <= mese; i++)  {
+        if (mese <= 0) {
+                return initialInvestment;
+        }
+
+        for (let i = 1; i <= mese; i++)  {
                 //rendimenti di questo mese
                 let returns = calculateReturnsByMonth(state, i, returnFunctions);
 

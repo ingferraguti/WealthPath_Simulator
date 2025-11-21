@@ -235,6 +235,27 @@ new Chart(doughnutCtx, {
     new Chart(lineCtx, {
         type: 'line',
         data: getMonthlyData(),
+        options: {
+            plugins: {
+                datalabels: {
+                    display: function(context) {
+                        return context.active;
+                    },
+                    formatter: function(value) {
+                        return `€${Number(value).toFixed(2)}`;
+                    }
+                }
+            },
+            tooltips: {
+                callbacks: {
+                    label: function(tooltipItem, data) {
+                        const label = data.datasets[tooltipItem.datasetIndex].label || '';
+                        const value = Number(tooltipItem.yLabel).toFixed(2);
+                        return `${label}: €${value}`;
+                    }
+                }
+            }
+        }
     });
 	
 	

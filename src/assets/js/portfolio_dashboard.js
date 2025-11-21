@@ -34,9 +34,9 @@ function getRiskLevel() {
 
 
 
-function randomizePerformance() {
-	priceRatios.sort(() => Math.random() - 0.5);
-	renderDashboard();
+function toggleFixedReturns(isEnabled) {
+        useFixedReturnMode = isEnabled;
+        renderDashboard();
 }
 
 		

@@ -57,7 +57,7 @@ async function downloadPDF() {
             pdf.addPage();
 
             // Aggiungi il contenuto alla seconda pagina
-            await addContentToPDF('table-container-anno', pdf, 0, 10);
+            await addContentToPDF('tablecontaineranno', pdf, 0, 10);
 
             // Salva il PDF con il nome file "pagina_esempio.pdf"
             pdf.save('pagina_esempio.pdf');

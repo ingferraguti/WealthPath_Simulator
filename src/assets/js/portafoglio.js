@@ -8,18 +8,31 @@
 // moltiplicatore GBM reale.
 let gbmReturnsByMonth = {};
 
+function getPortfolioState(overrides = {}) {
+    return {
+        allocation,
+        initialInvestment,
+        monthlyContribution,
+        timeHorizon,
+        returnFunctions,
+        priceRatios,
+        gbmReturnsByMonth,
+        ...overrides,
+    };
+}
+
 // Calcola il capitale totale dopo "i" mesi sommando al capitale iniziale la
-// contribuzione mensile. Si appoggia alle variabili globali
-// `initialInvestment` e `monthlyContribution` definite altrove.
-function calculateContribValue(i) {
+// contribuzione mensile utilizzando i valori forniti nello stato.
+function calculateContribValue(state, i) {
+        const { initialInvestment, monthlyContribution } = state;
         return initialInvestment + (monthlyContribution * i);
 }
 
 
 // Distribuisce la contribuzione mensile in base all'allocazione percentuale
-// dell'asset class specificata. Usa i valori globali `allocation` e
-// `monthlyContribution`.
-function dumbMCA (assetClass){
+// dell'asset class specificata, leggendo i valori dallo stato fornito.
+function dumbMCA (state, assetClass){
+        const { allocation, monthlyContribution } = state;
         return monthlyContribution * (allocation[assetClass] / 100);
 }
 
@@ -53,18 +66,22 @@ function calculateInvestmentComponents(allocation, initialInvestment) {
 // così che tutte le chiamate a calculatePortfolioValue condividano lo stesso percorso
 // durante un renderDashboard. In questa fase i moltiplicatori sono statici; il GBM
 // reale sostituirà la logica di assegnazione dei valori mock.
-function generateSimulatedReturns(allocation, timeHorizon) {
+function generateSimulatedReturns(state) {
+    const { allocation, timeHorizon } = state;
     const numeroMesi = timeHorizon * 12;
-    gbmReturnsByMonth = [];
+    const simulatedReturns = [];
 
     for (let mese = 0; mese <= numeroMesi; mese++) {
-        gbmReturnsByMonth[mese] = {};
+        simulatedReturns[mese] = {};
 
         Object.keys(allocation).forEach(assetClass => {
             const mockReturn = assetClass === 'azionarioGlobale' ? 1.01 : 1.00;
-            gbmReturnsByMonth[mese][assetClass] = mockReturn;
+            simulatedReturns[mese][assetClass] = mockReturn;
         });
     }
+
+    gbmReturnsByMonth = simulatedReturns;
+    state.gbmReturnsByMonth = simulatedReturns;
 }
 
 
@@ -73,15 +90,17 @@ function generateSimulatedReturns(allocation, timeHorizon) {
    e costruisce i rendimenti chiamando `calculateReturn(mese)` per ogni asset
    class. I valori prodotti alimentano calculatePortfolioReturns.
 */
-function calculateReturnsByMonth(mese, returnFunctions) {
+function calculateReturnsByMonth(state, mese, returnFunctions) {
     // Calcola i rendimenti per ciascun asset class utilizzando le funzioni fornite
-    const returns = returnFunctions.map(func => {
+    const returnsByMonth = state.gbmReturnsByMonth || {};
+    const returnFunctionsToUse = returnFunctions || state.returnFunctions || [];
+    const returns = returnFunctionsToUse.map(func => {
         const { assetClass, calculateReturn } = func;
 
         // Calcola il rendimento per l'asset class utilizzando il mese come input
         const returnValue =
-            gbmReturnsByMonth?.[mese]?.[assetClass] !== undefined
-                ? gbmReturnsByMonth[mese][assetClass]
+            returnsByMonth?.[mese]?.[assetClass] !== undefined
+                ? returnsByMonth[mese][assetClass]
                 : calculateReturn(mese);
 
         return {
@@ -202,17 +221,18 @@ function calculateTotalInvestment(portafoglio) {
 
 
 // Simula mese per mese l'andamento del portafoglio applicando contributi e rendimenti
-// calcolati da `returnFunctions`. Utilizza le variabili globali allocation,
-// initialInvestment e monthlyContribution.
-function calculatePortfolioValue(mese) {
+// calcolati da `returnFunctions` presenti nello stato fornito.
+function calculatePortfolioValue(state, mese) {
+
+        const { allocation, initialInvestment, monthlyContribution, returnFunctions } = state;
 
         let portafoglio = calculateInvestmentComponents(allocation, initialInvestment);
-    
-	for (let i = 0; i <= mese; i++)  {
-		//rendimenti di questo mese
-		let returns = calculateReturnsByMonth(i, returnFunctions);
-		
-		portafoglio = addMonthlyContribution(portafoglio, allocation, monthlyContribution);
+
+        for (let i = 0; i <= mese; i++)  {
+                //rendimenti di questo mese
+                let returns = calculateReturnsByMonth(state, i, returnFunctions);
+
+                portafoglio = addMonthlyContribution(portafoglio, allocation, monthlyContribution);
 		
 		//bilanciamento annuale
 		//if (i % 12 === 0) {portafoglio = calculateInvestmentComponents(allocation, calculateTotalInvestment(portafoglio));}
@@ -235,10 +255,12 @@ function calculatePortfolioValue(mese) {
 // Variante semplificata che separa componente azionaria, oro e obbligazionaria
 // e applica i rapporti di prezzo mensili alla sola parte azionaria.
 
-function calculatePortfolioValue2(i) {
-	
-		// Calcola il valore iniziale della parte azionaria del portafoglio in base all'allocazione azionaria
-		let azionariaValue = initialInvestment * (allocation['azionarioGlobale'] / 100);
+function calculatePortfolioValue2(state, i) {
+
+                const { allocation, initialInvestment, monthlyContribution, priceRatios } = state;
+
+                // Calcola il valore iniziale della parte azionaria del portafoglio in base all'allocazione azionaria
+                let azionariaValue = initialInvestment * (allocation['azionarioGlobale'] / 100);
 		
 		let oroValue = initialInvestment * (allocation['oro'] / 100);
 	

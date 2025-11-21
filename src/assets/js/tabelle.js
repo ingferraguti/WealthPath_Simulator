@@ -10,10 +10,12 @@ function qaz(mese){
 
 
 function wsx(mese){
-	
-	if( qaz(mese) > (calculatePortfolioValue(mese) - calculatePortfolioValue(mese -1 ))) return 'SI';
-	
-	return 'NO';
+
+        const portfolioState = getPortfolioState();
+
+        if( qaz(mese) > (calculatePortfolioValue(portfolioState, mese) - calculatePortfolioValue(portfolioState, mese -1 ))) return 'SI';
+
+        return 'NO';
 }
 
 function creaTabella(numeroMesi) {
@@ -22,6 +24,8 @@ function creaTabella(numeroMesi) {
             if (!tableContainer) {
                 return;
             }
+
+            const portfolioState = getPortfolioState();
 
             tableContainer.innerHTML = '';
 
@@ -52,22 +56,22 @@ function creaTabella(numeroMesi) {
                 row.insertCell().innerText = mese;
 
                 // Seconda colonna: risultato di funzione1(mese)
-                row.insertCell().innerText = euro.format(calculatePortfolioValue(mese));
+                row.insertCell().innerText = euro.format(calculatePortfolioValue(portfolioState, mese));
 
                 // Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = euro.format(calculateContribValue(mese));
+                row.insertCell().innerText = euro.format(calculateContribValue(portfolioState, mese));
 				
 				// Terza colonna: risultato di funzione2(mese)
                 row.insertCell().innerText = euro.format(qaz(mese));
 				
 				// Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = euro.format(   calculatePortfolioValue(mese) - calculatePortfolioValue(mese -1 )   );
+                row.insertCell().innerText = euro.format(   calculatePortfolioValue(portfolioState, mese) - calculatePortfolioValue(portfolioState, mese -1 )   );
 				
 				// Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = ( ( (calculatePortfolioValue(mese) - calculatePortfolioValue(mese -1 )) / calculatePortfolioValue(mese-1) )*100  ).toFixed(2);
+                row.insertCell().innerText = ( ( (calculatePortfolioValue(portfolioState, mese) - calculatePortfolioValue(portfolioState, mese -1 )) / calculatePortfolioValue(portfolioState, mese-1) )*100  ).toFixed(2);
 				
 				// Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = (((calculatePortfolioValue(mese) / calculateContribValue(mese))-1)*100).toFixed(2);
+                row.insertCell().innerText = (((calculatePortfolioValue(portfolioState, mese) / calculateContribValue(portfolioState, mese))-1)*100).toFixed(2);
 				
 				row.insertCell().innerText = wsx(mese)  ;
             }
@@ -86,6 +90,8 @@ function creaTabella2(numeroAnni) {
             if (!annualTableContainer) {
                 return;
             }
+
+            const portfolioState = getPortfolioState();
 
             annualTableContainer.innerHTML = '';
 
@@ -117,22 +123,22 @@ function creaTabella2(numeroAnni) {
                 row.insertCell().innerText = mese;
 
                 // Seconda colonna: risultato di funzione1(mese)
-                row.insertCell().innerText = euro.format(calculatePortfolioValue(mese*12));
+                row.insertCell().innerText = euro.format(calculatePortfolioValue(portfolioState, mese*12));
 
                 // Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = euro.format(calculateContribValue(mese*12));
+                row.insertCell().innerText = euro.format(calculateContribValue(portfolioState, mese*12));
 				
 				// Terza colonna: risultato di funzione2(mese)
                 row.insertCell().innerText = euro.format(qaz(mese)*12);
 				
 				// Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = euro.format( incremento =  calculatePortfolioValue(mese*12) - calculatePortfolioValue((mese-1)*12 )   );
+                row.insertCell().innerText = euro.format( incremento =  calculatePortfolioValue(portfolioState, mese*12) - calculatePortfolioValue(portfolioState, (mese-1)*12 )   );
 				
 				// Terza colonna: risultato di performance annuale
-                row.insertCell().innerText = ( ( (incremento - (qaz(mese)*12)) / (calculatePortfolioValue((mese-1)*12) ))*100  ).toFixed(2);
+                row.insertCell().innerText = ( ( (incremento - (qaz(mese)*12)) / (calculatePortfolioValue(portfolioState, (mese-1)*12) ))*100  ).toFixed(2);
 				
 				// Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = (((calculatePortfolioValue(mese*12) / calculateContribValue(mese*12))-1)*100).toFixed(2);
+                row.insertCell().innerText = (((calculatePortfolioValue(portfolioState, mese*12) / calculateContribValue(portfolioState, mese*12))-1)*100).toFixed(2);
 				
 				
             }

@@ -10,9 +10,10 @@ const {
     } = {},
     allocation: defaultAllocation = {},
     currencyInfo = {},
-    allocationLabel = {},
     returnFunctions: returnFunctionDefinitions = [],
 } = window.marketData || {};
+
+const allocationLabel = (window.labels && window.labels.assets) || {};
 
 let initialInvestment = defaultInitialInvestment ?? 0;
 let monthlyContribution = defaultMonthlyContribution ?? 0;

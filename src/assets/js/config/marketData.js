@@ -43,15 +43,6 @@
       materiePrime: { currency: "USD", hedged: false },
       oro: { currency: "USD", hedged: false },
     },
-    allocationLabel: {
-      azionarioGlobale: "Azionario Globale",
-      obblGovEU10: "Obbl. GOV EU 10+ Y",
-      obblGovEU3: "Obbl. GOV EU 3-7 Y",
-      obblEUInflLinked: "Obbl. EU infl. linked",
-      obblCorporate: "Obbl. corporate",
-      materiePrime: "Materie Prime",
-      oro: "Oro",
-    },
     returnFunctions: [
       {
         assetClass: "azionarioGlobale",

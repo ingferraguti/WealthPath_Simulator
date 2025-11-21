@@ -32,14 +32,14 @@ function creaTabella(numeroMesi) {
 
             const header = table.createTHead();
             const headerRow = header.insertRow();
-            headerRow.insertCell().innerText = 'Mese';
-            headerRow.insertCell().innerText = 'valore';
-            headerRow.insertCell().innerText = 'contributi';
-			headerRow.insertCell().innerText = 'contributo mensile';
-			headerRow.insertCell().innerText = 'incremento mensile';
-			headerRow.insertCell().innerText = 'performance mensile';
-			headerRow.insertCell().innerText = 'performance totale';
-			headerRow.insertCell().innerText = 'performance > contrib';
+            headerRow.insertCell().innerText = getLabel('ui.tableMonth');
+            headerRow.insertCell().innerText = getLabel('ui.tableValue');
+            headerRow.insertCell().innerText = getLabel('ui.tableContributions');
+                        headerRow.insertCell().innerText = getLabel('ui.tableMonthlyContribution');
+                        headerRow.insertCell().innerText = getLabel('ui.tableMonthlyIncrease');
+                        headerRow.insertCell().innerText = getLabel('ui.tableMonthlyPerformance');
+                        headerRow.insertCell().innerText = getLabel('ui.tableTotalPerformance');
+                        headerRow.insertCell().innerText = getLabel('ui.tablePerformanceVsContrib');
 			
 			
 
@@ -96,13 +96,13 @@ function creaTabella2(numeroAnni) {
 
             const header = table2.createTHead();
             const headerRow = header.insertRow();
-            headerRow.insertCell().innerText = 'Anno';
-            headerRow.insertCell().innerText = 'valore';
-            headerRow.insertCell().innerText = 'contributi';
-			headerRow.insertCell().innerText = 'contributo annuale';
-			headerRow.insertCell().innerText = 'incremento annuale';
-			headerRow.insertCell().innerText = 'performance annuale';
-			headerRow.insertCell().innerText = 'performance totale';
+            headerRow.insertCell().innerText = getLabel('ui.tableYear');
+            headerRow.insertCell().innerText = getLabel('ui.tableValue');
+            headerRow.insertCell().innerText = getLabel('ui.tableContributions');
+                        headerRow.insertCell().innerText = getLabel('ui.tableAnnualContribution');
+                        headerRow.insertCell().innerText = getLabel('ui.tableAnnualIncrease');
+                        headerRow.insertCell().innerText = getLabel('ui.tableAnnualPerformance');
+                        headerRow.insertCell().innerText = getLabel('ui.tableTotalPerformance');
 			
 			
 			

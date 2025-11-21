@@ -78,7 +78,7 @@ function renderDashboard() {
 			<!--
                 <div class="charts col">
                     <div class="gauge-chart mb-4">
-                     <h2>Livello di Rischio</h2>
+                     <h2>${getLabel('ui.riskLevel')}</h2>
                       <div id="riskLevel">${(getRiskLevel() * 20).toFixed(2)}%</div>
                     </div>
                 </div>
@@ -103,7 +103,7 @@ function renderDashboard() {
                             <div class="col mr-2">
 								<label class="form-label">
 								  <div class="text-uppercase text-primary font-weight-bold text-xs mb-1"><span>
-								  Investimento Iniziale
+                                                                  ${getLabel('ui.initialInvestment')}
 								  </span></div>  
 									<input type="number" class="form-control" value="${initialInvestment}" onchange="initialInvestment = Number(this.value); renderDashboard();" />
 								</label>
@@ -119,7 +119,7 @@ function renderDashboard() {
                             <div class="col mr-2">
 								<label class="form-label">
 								  <div class="text-uppercase text-primary font-weight-bold text-xs mb-1"><span>
-								  Contributo Mensile
+                                                                  ${getLabel('ui.monthlyContribution')}
 								  </span></div>  
 									<input type="number" class="form-control" value="${monthlyContribution}" onchange="monthlyContribution = Number(this.value); renderDashboard();" />
 								</label>
@@ -135,7 +135,7 @@ function renderDashboard() {
                             <div class="col mr-2">
 								<label class="form-label">
 								  <div class="text-uppercase text-primary font-weight-bold text-xs mb-1"><span>
-								  Orizzonte Temporale (anni)
+                                                                  ${getLabel('ui.timeHorizonYears')}
 								  </span></div>  
 										<input type="number" class="form-control" value="${timeHorizon}" onchange="timeHorizon = Number(this.value); renderDashboard();" />
 								</label>
@@ -151,7 +151,7 @@ function renderDashboard() {
 								<div class="col mr-2">
 									<label class="form-label">
 									  <div class="text-uppercase text-primary font-weight-bold text-xs mb-1"><span>
-									  Contributi Totali
+                                                                            ${getLabel('ui.totalContributions')}
 									  </span></div>  
 									  <div class="row no-gutters align-items-center">
                                         <div class="col-auto">
@@ -172,7 +172,7 @@ function renderDashboard() {
 	`;
 	document.getElementById('performancebox').innerHTML =  `
 	 <div class="portfolio-performance">
-                <h2>Andamento del Portafoglio</h2>
+                <h2>${getLabel('ui.portfolioPerformance')}</h2>
                 <canvas id="lineChart"></canvas>
             </div>
 	`;

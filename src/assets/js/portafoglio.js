@@ -7,6 +7,15 @@
 // (mock) di rendimenti mensili per asset class; in seguito verrà sostituita dal
 // moltiplicatore GBM reale.
 let gbmReturnsByMonth = {};
+const fixedReturnByAsset = {
+    azionarioGlobale: 1.0125,
+    obblGovEU10: 1.0035,
+    obblGovEU3: 1.0025,
+    obblEUInflLinked: 1.002,
+    obblCorporate: 1.0045,
+    materiePrime: 1.008,
+    oro: 1.006,
+};
 
 function getPortfolioState(overrides = {}) {
     return {
@@ -17,6 +26,7 @@ function getPortfolioState(overrides = {}) {
         returnFunctions,
         priceRatios,
         gbmReturnsByMonth,
+        useFixedReturnMode,
         ...overrides,
     };
 }
@@ -67,7 +77,7 @@ function calculateInvestmentComponents(allocation, initialInvestment) {
 // durante un renderDashboard. In questa fase i moltiplicatori sono statici; il GBM
 // reale sostituirà la logica di assegnazione dei valori mock.
 function generateSimulatedReturns(state) {
-    const { allocation, timeHorizon } = state;
+    const { allocation, timeHorizon, useFixedReturnMode } = state;
     const numeroMesi = timeHorizon * 12;
     const simulatedReturns = [];
 
@@ -75,8 +85,12 @@ function generateSimulatedReturns(state) {
         simulatedReturns[mese] = {};
 
         Object.keys(allocation).forEach(assetClass => {
-            const mockReturn = assetClass === 'azionarioGlobale' ? 1.01 : 1.00;
-            simulatedReturns[mese][assetClass] = mockReturn;
+            if (useFixedReturnMode) {
+                simulatedReturns[mese][assetClass] = fixedReturnByAsset[assetClass] ?? 1;
+            } else {
+                simulatedReturns[mese][assetClass] = 1;
+                // TODO: collegare qui la funzione che randomizza i rendimenti per i test futuri
+            }
         });
     }
 

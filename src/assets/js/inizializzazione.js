@@ -18,6 +18,7 @@ const allocationLabel = (window.labels && window.labels.assets) || {};
 let initialInvestment = defaultInitialInvestment ?? 0;
 let monthlyContribution = defaultMonthlyContribution ?? 0;
 let timeHorizon = defaultTimeHorizonYears ?? 1; // Orizzonte temporale in anni
+let useFixedReturnMode = false; // Toggle di debug per applicare rendimenti costanti per asset class
 
 const allocation = { ...defaultAllocation };
 

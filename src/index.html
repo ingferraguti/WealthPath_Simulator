@@ -244,8 +244,11 @@
                             <div class="row align-items-center no-gutters">
                                 <div class="col mr-2">
                                  
-                                    <!-- randomizePerformance() swaps in a fresh simulated performance series for quick demos -->
-                                    <button type="button" class="btn btn-danger btn-lg" onclick="randomizePerformance()">Randomizza rendimenti</button>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="fixedReturnSwitch" onchange="toggleFixedReturns(this.checked)">
+                                        <label class="form-check-label font-weight-bold" for="fixedReturnSwitch">Rendimenti fissi di debug</label>
+                                        <small class="text-muted d-block">Attivalo per applicare un rendimento costante e diverso per ogni asset; disattivo mantiene i rendimenti neutri (1x).</small>
+                                    </div>
                                 </div>
                                 <div class="col-auto"><i class="fas fa-refresh fa-2x text-gray-300"></i></div>
                             </div>

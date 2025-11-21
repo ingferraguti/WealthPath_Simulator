@@ -3,10 +3,23 @@
 // portafoglio in base a contributi periodici e rendimenti mensili.
 
 // Sequenza di rendimenti simulati utilizzata da calculateReturnsByMonth.
-// Viene rigenerata ad ogni renderDashboard per congelare un percorso unico
-// (mock) di rendimenti mensili per asset class; in seguito verrà sostituita dal
-// moltiplicatore GBM reale.
+// Viene rigenerata ad ogni renderDashboard per congelare un percorso unico di
+// rendimenti mensili per asset class. Quando il debug è disattivato,
+// l'assegnazione avviene tramite un percorso GBM monoscenario; in caso
+// contrario vengono usati moltiplicatori deterministici.
 let gbmReturnsByMonth = {};
+// Parametri annualizzati (media e volatilità) per il GBM per asset class note.
+// Se un'asset class non compare, la simulazione ricadrà su un comportamento
+// deterministico, mantenendo l'attuale fallback mock/statico.
+const gbmParams = {
+    azionarioGlobale: { muAnn: 0.07, sigmaAnn: 0.15 },
+    obblGovEU10: { muAnn: 0.02, sigmaAnn: 0.05 },
+    obblGovEU3: { muAnn: 0.015, sigmaAnn: 0.03 },
+    obblEUInflLinked: { muAnn: 0.02, sigmaAnn: 0.04 },
+    obblCorporate: { muAnn: 0.03, sigmaAnn: 0.07 },
+    materiePrime: { muAnn: 0.04, sigmaAnn: 0.20 },
+    oro: { muAnn: 0.03, sigmaAnn: 0.18 }
+};
 const fixedReturnByAsset = {
     azionarioGlobale: 1.0125,
     obblGovEU10: 1.0035,
@@ -16,6 +29,30 @@ const fixedReturnByAsset = {
     materiePrime: 1.008,
     oro: 1.006,
 };
+
+// Generatore Box-Muller per z ~ N(0,1), utilizzato dal modello GBM mensile.
+function rngNormal() {
+    const u1 = Math.random();
+    const u2 = Math.random();
+    const z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+    return z0;
+}
+
+// Calcola il moltiplicatore mensile GBM per l'asset indicato.
+// Se l'asset non è parametrizzato, restituisce null così che il chiamante
+// possa usare la logica deterministica esistente.
+function gbmMonthlyMultiplier(assetClass) {
+    const params = gbmParams[assetClass];
+    if (!params) {
+        return null;
+    }
+
+    const { muAnn, sigmaAnn } = params;
+    const dt = 1 / 12;
+    const z = rngNormal();
+    const logReturn = (muAnn - 0.5 * Math.pow(sigmaAnn, 2)) * dt + sigmaAnn * Math.sqrt(dt) * z;
+    return Math.exp(logReturn);
+}
 
 function getPortfolioState(overrides = {}) {
     return {
@@ -71,11 +108,13 @@ function calculateInvestmentComponents(allocation, initialInvestment) {
 }
 
 
-// Genera una sequenza congelata di rendimenti mensili (mock) per ogni asset class.
-// La sequenza è indicizzata per mese e asset e viene letta da calculateReturnsByMonth
-// così che tutte le chiamate a calculatePortfolioValue condividano lo stesso percorso
-// durante un renderDashboard. In questa fase i moltiplicatori sono statici; il GBM
-// reale sostituirà la logica di assegnazione dei valori mock.
+// Genera una sequenza congelata di rendimenti mensili per ogni asset class.
+// Ad ogni renderDashboard viene creato un singolo percorso GBM completo per gli
+// asset parametrizzati, così che calculatePortfolioValue condivida lo stesso
+// scenario stocastico in tutte le chiamate. Gli asset non parametrizzati
+// continuano a usare il fallback deterministico (mock) per mantenere la
+// compatibilità con il comportamento precedente e per future estensioni
+// multi-scenario.
 function generateSimulatedReturns(state) {
     const { allocation, timeHorizon, useFixedReturnMode } = state;
     const numeroMesi = timeHorizon * 12;
@@ -88,8 +127,17 @@ function generateSimulatedReturns(state) {
             if (useFixedReturnMode) {
                 simulatedReturns[mese][assetClass] = fixedReturnByAsset[assetClass] ?? 1;
             } else {
-                simulatedReturns[mese][assetClass] = 1;
-                // TODO: collegare qui la funzione che randomizza i rendimenti per i test futuri
+                // Prima tentiamo il GBM: se esistono parametri generiamo un moltiplicatore
+                // stocastico; altrimenti applichiamo il vecchio comportamento deterministico
+                // (mock) per mantenere coerenza con asset non coperti.
+                const gbmValue = gbmMonthlyMultiplier(assetClass);
+                if (gbmValue !== null && gbmValue !== undefined) {
+                    simulatedReturns[mese][assetClass] = gbmValue;
+                } else if (assetClass === 'azionarioGlobale') {
+                    simulatedReturns[mese][assetClass] = 1.01;
+                } else {
+                    simulatedReturns[mese][assetClass] = 1.0;
+                }
             }
         });
     }

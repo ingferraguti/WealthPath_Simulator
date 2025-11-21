@@ -13,7 +13,16 @@ function wsx(mese){
 
         const portfolioState = getPortfolioState();
 
-        if( qaz(mese) > (calculatePortfolioValue(portfolioState, mese) - calculatePortfolioValue(portfolioState, mese -1 ))) return 'SI';
+        if (mese <= 0) {
+                return 'NO';
+        }
+
+        const previousValue = calculatePortfolioValue(portfolioState, mese - 1);
+        const currentValue = calculatePortfolioValue(portfolioState, mese);
+        const monthlyContributionAmount = qaz(mese);
+        const monthlyPerformanceAmount = currentValue - previousValue - monthlyContributionAmount;
+
+        if (monthlyPerformanceAmount > monthlyContributionAmount) return 'SI';
 
         return 'NO';
 }

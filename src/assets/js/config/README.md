@@ -1,8 +1,10 @@
-# marketData.js
+# Configurazioni front-end
 
 `marketData.js` raccoglie in un unico oggetto le costanti di mercato utilizzate dai vari script front-end. Il file espone `window.marketData` con i campi descritti di seguito, così da poter aggiornare i parametri senza dover modificare più file JS.
 
-## Struttura dell'oggetto
+`labels.js` centralizza le etichette UI e le descrizioni delle asset class. Espone `window.labels` e l'helper `window.getLabel(path)` per recuperare le stringhe a partire da una chiave (es. `getLabel('ui.initialInvestment')`).
+
+## Struttura dell'oggetto `marketData`
 
 - `priceRatios` (Array<number>): sequenza di moltiplicatori mensili (dimensione adimensionale) applicati all'azionario globale nel mock di simulazione. Ogni valore rappresenta un rendimento relativo (es. `1.02` = +2%).
 - `defaults` (Object): valori di partenza per la simulazione.
@@ -13,12 +15,12 @@
 - `currencyInfo` (Object): metadati valutari per ogni asset class.
   - `currency` (string): codice valuta (es. `EUR`, `USD`).
   - `hedged` (boolean): `true` se la posizione è coperta dal rischio cambio.
-- `allocationLabel` (Object): etichette leggibili da mostrare nell'interfaccia per ciascun asset.
 - `returnFunctions` (Array<Object>): lista di configurazioni di rendimento per asset class.
   - `assetClass` (string): chiave dell'asset (deve corrispondere a `allocation`).
   - `calculateReturn` (function): funzione che restituisce il moltiplicatore mensile (es. `1.01` per +1%). La funzione riceve l'indice di mese.
 
 ## Modalità d'uso
 
-1. Includere `assets/js/config/marketData.js` **prima** degli altri script che leggono i dati di mercato (vedi `src/index.html`).
-2. Modificare i valori nel file per aggiornare etichette, pesi percentuali o sequenze di rendimento senza toccare la logica applicativa.
+1. Includere `assets/js/config/labels.js` e `assets/js/config/marketData.js` **prima** degli altri script che leggono i dati di mercato (vedi `src/index.html`).
+2. Modificare i valori in `labels.js` per aggiornare le etichette UI o le descrizioni delle asset class senza toccare la logica applicativa.
+3. Modificare i valori in `marketData.js` per aggiornare pesi percentuali o sequenze di rendimento senza toccare la logica applicativa.

@@ -27,18 +27,19 @@ function getDoughnutData() {
 
 // Funzione per calcolare i dati del grafico mensile dell'andamento del portafoglio
 function getMonthlyData() {
+    const portfolioState = getPortfolioState();
     return {
         labels: Array.from({ length: timeHorizon * 12 }, (_, i) => `Mese ${i + 1}`),
         datasets: [
             {
                 label: 'Valore del Portafoglio',
-                data: Array.from({ length: timeHorizon * 12 }, (_, i) => calculatePortfolioValue(i)),
+                data: Array.from({ length: timeHorizon * 12 }, (_, i) => calculatePortfolioValue(portfolioState, i)),
                 borderColor: '#36A2EB',
                 fill: false,
             },
-			{
+                        {
                 label: 'Contributi',
-                data: Array.from({ length: timeHorizon * 12 }, (_, i) => calculateContribValue(i)),
+                data: Array.from({ length: timeHorizon * 12 }, (_, i) => calculateContribValue(portfolioState, i)),
                 borderColor: '#16D2A1',
                 fill: false,
             },

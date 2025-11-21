@@ -44,7 +44,8 @@ function randomizePerformance() {
 
 // Funzione per rendere il dashboard
 function renderDashboard() {
-    generateSimulatedReturns(allocation, timeHorizon);
+    const portfolioState = getPortfolioState();
+    generateSimulatedReturns(portfolioState);
     document.getElementById('allocationbox').innerHTML = `
         <div class="portfolio-dashboard container">
             <!--<h1 class="text-center my-4">Data Dashboard per l'Asset Allocation del Portafoglio</h1>-->
@@ -177,14 +178,14 @@ function renderDashboard() {
             </div>
 	`;
 
-document.getElementById('perfomancetotale').innerHTML =  `<span>  ${ euro.format(calculatePortfolioValue(timeHorizon * 12) - calculateContribValue(timeHorizon * 12))  }</span>`;
+document.getElementById('perfomancetotale').innerHTML =  `<span>  ${ euro.format(calculatePortfolioValue(portfolioState, timeHorizon * 12) - calculateContribValue(portfolioState, timeHorizon * 12))  }</span>`;
 
 
-document.getElementById('perfomancetotaleperc').innerHTML =  `<span>  ${ parseFloat(((calculatePortfolioValue(timeHorizon * 12) / calculateContribValue(timeHorizon * 12))-1)*100).toFixed(2)+"%"  }</span>`;
+document.getElementById('perfomancetotaleperc').innerHTML =  `<span>  ${ parseFloat(((calculatePortfolioValue(portfolioState, timeHorizon * 12) / calculateContribValue(portfolioState, timeHorizon * 12))-1)*100).toFixed(2)+"%"  }</span>`;
 	
 	
 
-document.getElementById('contibutitotali').innerHTML =  `<span>  ${ euro.format(calculateContribValue(timeHorizon * 12))  }</span>`;
+document.getElementById('contibutitotali').innerHTML =  `<span>  ${ euro.format(calculateContribValue(portfolioState, timeHorizon * 12))  }</span>`;
 	
 	
  

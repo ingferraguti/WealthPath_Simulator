@@ -1,21 +1,44 @@
 
 
 
+function sanitizeAllocationValue(rawValue) {
+    const parsedValue = parseInt(rawValue, 10);
+    const safeValue = Number.isNaN(parsedValue) ? 0 : parsedValue;
+
+    return Math.min(Math.max(safeValue, 0), 100);
+}
+
+function handleAllocationInput(asset, inputElement) {
+    const sanitizedValue = sanitizeAllocationValue(inputElement.value);
+
+    if (inputElement.value === "" || Number(inputElement.value) !== sanitizedValue) {
+        inputElement.value = sanitizedValue;
+    }
+
+    handleAllocationChange(asset, sanitizedValue);
+}
+
 // Funzione per aggiornare l'allocazione
 function handleAllocationChange(asset, value) {
-    value = parseInt(value);
-    const totalAllocation = Object.values(allocation).reduce((acc, val) => acc + val, 0);
-    const remaining = 100 - value;
+    const numericValue = sanitizeAllocationValue(value);
+    const remaining = 100 - numericValue;
 
-    if (remaining < 0) return;
-
-    allocation[asset] = value;
+    allocation[asset] = numericValue;
     const otherAssets = Object.keys(allocation).filter(a => a !== asset);
     const currentTotalOthers = otherAssets.reduce((acc, key) => acc + allocation[key], 0);
 
-    otherAssets.forEach(a => {
-        allocation[a] = Math.round((allocation[a] / currentTotalOthers) * remaining);
-    });
+    if (currentTotalOthers === 0) {
+        const evenShare = otherAssets.length ? Math.round(remaining / otherAssets.length) : 0;
+        otherAssets.forEach((a, index) => {
+            allocation[a] = index === otherAssets.length - 1
+                ? remaining - evenShare * (otherAssets.length - 1)
+                : evenShare;
+        });
+    } else {
+        otherAssets.forEach(a => {
+            allocation[a] = Math.round((allocation[a] / currentTotalOthers) * remaining);
+        });
+    }
 
     const adjustedTotal = Object.values(allocation).reduce((acc, val) => acc + val, 0);
     if (adjustedTotal !== 100) {
@@ -62,13 +85,13 @@ function renderDashboard() {
 						
                                                 <h4 class=" font-weight-bold">
                                                         ${allocation[asset]} % &nbsp;&nbsp; ${getAllocationDisplayLabel(asset)}
-							<span class="float-right"> 
-						       <input type="number" class="form-range" min="0" max="94" value="${allocation[asset]}" 
-								onkeydown="return false"  oninput="handleAllocationChange('${asset}', this.value)" />
-							   <input type="range" class="form-range" min="0" max="94" value="${allocation[asset]}" 
-								oninput="handleAllocationChange('${asset}', this.value)" />
-							</span>
-						</h4>
+                                                        <span class="float-right">
+                                                       <input type="number" class="form-range" min="0" max="100" value="${allocation[asset]}"
+                                                                onkeydown="return false"  oninput="handleAllocationInput('${asset}', this)" />
+                                                           <input type="range" class="form-range" min="0" max="100" value="${allocation[asset]}"
+                                                                oninput="handleAllocationInput('${asset}', this)" />
+                                                        </span>
+                                                </h4>
 						<div class="progress mb-4">
                                     <div class="progress-bar bg-primary" aria-valuenow="${allocation[asset]}" aria-valuemin="0" aria-valuemax="100" style="width: ${allocation[asset]}%;"><span class="sr-only"> ${allocation[asset]}%</span></div>
                                 </div>

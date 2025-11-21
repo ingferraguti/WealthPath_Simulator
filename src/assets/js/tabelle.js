@@ -52,26 +52,33 @@ function creaTabella(numeroMesi) {
             for (let mese = 0; mese <= numeroMesi; mese++) {
                 const row = tbody.insertRow();
 
+                const previousValue = calculatePortfolioValue(portfolioState, mese - 1);
+                const currentValue = calculatePortfolioValue(portfolioState, mese);
+                const monthlyContributionAmount = qaz(mese);
+                const investedCapital = calculateContribValue(portfolioState, mese);
+                const monthlyIncrease = currentValue - previousValue;
+                const monthlyPerformance = (((monthlyIncrease - monthlyContributionAmount) / previousValue) * 100).toFixed(2);
+
                 // Prima colonna: numero crescente del mese
                 row.insertCell().innerText = mese;
 
                 // Seconda colonna: risultato di funzione1(mese)
-                row.insertCell().innerText = euro.format(calculatePortfolioValue(portfolioState, mese));
+                row.insertCell().innerText = euro.format(currentValue);
 
                 // Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = euro.format(calculateContribValue(portfolioState, mese));
+                row.insertCell().innerText = euro.format(investedCapital - portfolioState.initialInvestment);
+
+                                // Terza colonna: risultato di funzione2(mese)
+                row.insertCell().innerText = euro.format(monthlyContributionAmount);
+
+                                // Terza colonna: risultato di funzione2(mese)
+                row.insertCell().innerText = euro.format(monthlyIncrease);
+
+                                // Terza colonna: risultato di funzione2(mese)
+                row.insertCell().innerText = monthlyPerformance;
 				
 				// Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = euro.format(qaz(mese));
-				
-				// Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = euro.format(   calculatePortfolioValue(portfolioState, mese) - calculatePortfolioValue(portfolioState, mese -1 )   );
-				
-				// Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = ( ( (calculatePortfolioValue(portfolioState, mese) - calculatePortfolioValue(portfolioState, mese -1 )) / calculatePortfolioValue(portfolioState, mese-1) )*100  ).toFixed(2);
-				
-				// Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = (((calculatePortfolioValue(portfolioState, mese) / calculateContribValue(portfolioState, mese))-1)*100).toFixed(2);
+                row.insertCell().innerText = (((currentValue / investedCapital)-1)*100).toFixed(2);
 				
 				row.insertCell().innerText = wsx(mese)  ;
             }
@@ -126,7 +133,7 @@ function creaTabella2(numeroAnni) {
                 row.insertCell().innerText = euro.format(calculatePortfolioValue(portfolioState, mese*12));
 
                 // Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = euro.format(calculateContribValue(portfolioState, mese*12));
+                row.insertCell().innerText = euro.format(calculateContribValue(portfolioState, mese*12) - portfolioState.initialInvestment);
 				
 				// Terza colonna: risultato di funzione2(mese)
                 row.insertCell().innerText = euro.format(qaz(mese)*12);

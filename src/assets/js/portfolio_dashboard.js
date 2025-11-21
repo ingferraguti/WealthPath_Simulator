@@ -206,6 +206,7 @@ new Chart(doughnutCtx, {
     data: getDoughnutData(),
     options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
             legend: {
                 position: 'top',

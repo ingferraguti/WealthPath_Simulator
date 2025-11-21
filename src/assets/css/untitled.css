@@ -13,3 +13,23 @@
     height: 100% !important;
 }
 
+@media (max-width: 768px) {
+    .doughnut-chart-wrapper {
+        min-height: 280px;
+    }
+}
+
+@media (max-width: 576px) {
+    .doughnut-chart-wrapper {
+        min-height: 240px;
+        height: 260px;
+        margin-left: -0.25rem;
+        margin-right: -0.25rem;
+    }
+
+    #doughnutChart {
+        width: 100% !important;
+        height: 100% !important;
+    }
+}
+

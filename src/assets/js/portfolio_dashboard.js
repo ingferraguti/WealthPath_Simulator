@@ -201,30 +201,40 @@ document.getElementById('contibutitotali').innerHTML =  `<span>  ${ euro.format(
     });*/
 	
 const doughnutCtx = document.getElementById('doughnutChart').getContext('2d');
+const isSmallScreen = window.matchMedia('(max-width: 576px)').matches;
 new Chart(doughnutCtx, {
     type: 'doughnut',
     data: getDoughnutData(),
     options: {
         responsive: true,
         maintainAspectRatio: false,
+        layout: {
+            padding: {
+                top: 12,
+                right: 12,
+                bottom: 12,
+                left: 12,
+            },
+        },
         plugins: {
             legend: {
-                position: 'top',
-            }/*,
-            tooltip: {
-                callbacks: {
-                    label: function(context) {
-                        return context.label + ': ' + context.raw + '%';
-                    }
-                }
-            }*/
+                position: 'bottom',
+                labels: {
+                    boxWidth: 12,
+                    boxHeight: 12,
+                    padding: 14,
+                    font: {
+                        size: isSmallScreen ? 11 : 12,
+                    },
+                },
+            },
         },
         cutout: '50%',
         animation: {
             animateScale: false,
-            animateRotate: false
+            animateRotate: false,
         },
-        events: []  // Disabilita qualsiasi evento di interazione (come il click)
+        events: [], // Disabilita qualsiasi evento di interazione (come il click)
     }
 });
 

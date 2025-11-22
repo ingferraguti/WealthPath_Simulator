@@ -62,8 +62,20 @@ function toggleFixedReturns(isEnabled) {
         renderDashboard();
 }
 
-function rerunCurrentSimulation() {
+function hasSimulatedReturns(state) {
+    return state.gbmReturnsByMonth && Object.keys(state.gbmReturnsByMonth).length > 0;
+}
+
+function randomizePerformance() {
+    gbmReturnsByMonth = {};
+
+    const portfolioState = getPortfolioState({ gbmReturnsByMonth: {} });
+    generateSimulatedReturns(portfolioState);
     renderDashboard();
+}
+
+function rerunCurrentSimulation() {
+    randomizePerformance();
 }
 
 
@@ -72,7 +84,10 @@ function rerunCurrentSimulation() {
 // Funzione per rendere il dashboard
 function renderDashboard() {
     const portfolioState = getPortfolioState();
-    generateSimulatedReturns(portfolioState);
+
+    if (!hasSimulatedReturns(portfolioState)) {
+        generateSimulatedReturns(portfolioState);
+    }
     document.getElementById('allocationbox').innerHTML = `
         <div class="portfolio-dashboard container">
             <!--<h1 class="text-center my-4">Data Dashboard per l'Asset Allocation del Portafoglio</h1>-->

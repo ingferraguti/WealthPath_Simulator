@@ -62,7 +62,11 @@ function toggleFixedReturns(isEnabled) {
         renderDashboard();
 }
 
-		
+function rerunCurrentSimulation() {
+    renderDashboard();
+}
+
+
 
 
 // Funzione per rendere il dashboard

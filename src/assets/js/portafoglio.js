@@ -3,10 +3,10 @@
 // portafoglio in base a contributi periodici e rendimenti mensili.
 
 // Sequenza di rendimenti simulati utilizzata da calculateReturnsByMonth.
-// Viene rigenerata ad ogni renderDashboard per congelare un percorso unico di
-// rendimenti mensili per asset class. Quando il debug è disattivato,
-// l'assegnazione avviene tramite un percorso GBM monoscenario; in caso
-// contrario vengono usati moltiplicatori deterministici.
+// Viene generata al primo renderDashboard, poi riutilizzata finché non
+// viene chiesto esplicitamente di creare una nuova simulazione. Quando il
+// debug è disattivato, l'assegnazione avviene tramite un percorso GBM
+// monoscenario; in caso contrario vengono usati moltiplicatori deterministici.
 let gbmReturnsByMonth = {};
 // Parametri annualizzati (media e volatilità) per il GBM per asset class note.
 // Se un'asset class non compare, la simulazione ricadrà su un comportamento

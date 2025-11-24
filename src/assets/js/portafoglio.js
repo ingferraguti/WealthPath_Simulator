@@ -42,22 +42,52 @@ function rngNormal() {
 // Calcola il moltiplicatore mensile GBM per l'asset indicato.
 // Se l'asset non è parametrizzato, restituisce null così che il chiamante
 // possa usare la logica deterministica esistente.
-function gbmMonthlyMultiplier(assetClass) {
+function gbmMonthlyMultiplier(assetClass, options = {}) {
     const params = gbmParams[assetClass];
     if (!params) {
         return null;
     }
 
     const { muAnn, sigmaAnn } = params;
+    const {
+        macroState,
+        sensitivitiesForAsset = {},
+        enableMacroScenario = false,
+        macroDriftConfig = {},
+    } = options || {};
+
+    const { inflationBeta = 0, policyRateBeta = 0, realRateBeta = 0 } = sensitivitiesForAsset || {};
+    const { inflationAlpha, policyRateAlpha, realRateAlpha } = {
+        ...defaultMacroDriftConfig,
+        ...macroDriftConfig,
+    };
+
+    let adjustedMu = muAnn;
+
+    if (enableMacroScenario && macroState) {
+        const inflationImpact = (macroState.inflation ?? 0) * inflationBeta * inflationAlpha;
+        const policyRateImpact = (macroState.policyRate ?? 0) * policyRateBeta * policyRateAlpha;
+        const realRateValue = macroState.realRate ?? ((macroState.policyRate ?? 0) - (macroState.inflation ?? 0));
+        const realRateImpact = realRateValue * realRateBeta * realRateAlpha;
+
+        adjustedMu += inflationImpact + policyRateImpact + realRateImpact;
+    }
+
     const dt = 1 / 12;
     const z = rngNormal();
-    const logReturn = (muAnn - 0.5 * Math.pow(sigmaAnn, 2)) * dt + sigmaAnn * Math.sqrt(dt) * z;
+    const logReturn = (adjustedMu - 0.5 * Math.pow(sigmaAnn, 2)) * dt + sigmaAnn * Math.sqrt(dt) * z;
     return Math.exp(logReturn);
 }
 
 const defaultMacroTiltConfig = {
     additiveScale: 0.05,
     multiplicativeScale: 0.5,
+};
+
+const defaultMacroDriftConfig = {
+    inflationAlpha: 0.5,
+    policyRateAlpha: 0.5,
+    realRateAlpha: 0.25,
 };
 
 function applyMacroTilt(baseReturn, macroState, sensitivitiesForAsset = {}, macroTilt = {}) {
@@ -98,6 +128,7 @@ function getPortfolioState(overrides = {}) {
         useFixedReturnMode,
         assetClassSensitivities,
         macroTilt,
+        macroDrift,
         enableMacroAdjustments,
         ...overrides,
     };
@@ -152,11 +183,17 @@ function calculateInvestmentComponents(allocation, initialInvestment) {
 // multi-scenario.
 function generateSimulatedReturns(state) {
     const { allocation, timeHorizon, useFixedReturnMode } = state;
+    const macroByMonth = state.macroByMonth;
+    const sensitivities = state.assetClassSensitivities || {};
+    const macroDrift = state.macroDrift || defaultMacroDriftConfig;
+    const enableMacroScenario = Boolean(state.enableMacroAdjustments);
     const numeroMesi = timeHorizon * 12;
     const simulatedReturns = [];
 
     for (let mese = 0; mese <= numeroMesi; mese++) {
         simulatedReturns[mese] = {};
+
+        const macroState = enableMacroScenario ? macroByMonth?.[mese] : undefined;
 
         Object.keys(allocation).forEach(assetClass => {
             if (useFixedReturnMode) {
@@ -165,7 +202,14 @@ function generateSimulatedReturns(state) {
                 // Prima tentiamo il GBM: se esistono parametri generiamo un moltiplicatore
                 // stocastico; altrimenti applichiamo il vecchio comportamento deterministico
                 // (mock) per mantenere coerenza con asset non coperti.
-                const gbmValue = gbmMonthlyMultiplier(assetClass);
+                const sensitivitiesForAsset = enableMacroScenario ? sensitivities[assetClass] : undefined;
+                const gbmOptions =
+                    enableMacroScenario && macroState
+                        ? { macroState, sensitivitiesForAsset, enableMacroScenario, macroDriftConfig: macroDrift }
+                        : undefined;
+                const gbmValue = gbmOptions
+                    ? gbmMonthlyMultiplier(assetClass, gbmOptions)
+                    : gbmMonthlyMultiplier(assetClass);
                 if (gbmValue !== null && gbmValue !== undefined) {
                     simulatedReturns[mese][assetClass] = gbmValue;
                 } else if (assetClass === 'azionarioGlobale') {

@@ -59,6 +59,7 @@ function getRiskLevel() {
 
 function toggleFixedReturns(isEnabled) {
         useFixedReturnMode = isEnabled;
+        gbmReturnsByMonth = {};
         renderDashboard();
 }
 

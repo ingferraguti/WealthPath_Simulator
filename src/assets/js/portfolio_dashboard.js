@@ -124,11 +124,19 @@ function hasSimulatedReturns(state) {
     return state.gbmReturnsByMonth && Object.keys(state.gbmReturnsByMonth).length > 0;
 }
 
+function getActiveMacroPhases() {
+    const preset = macroScenarioPresets[selectedMacroScenario];
+    if (!enableMacroScenario) {
+        return macroScenarioPresets.neutral?.macroPhases || [];
+    }
+
+    return preset?.macroPhases || macroScenarioPresets.neutral?.macroPhases || [];
+}
+
 function randomizePerformance() {
     gbmReturnsByMonth = {};
-
-    const portfolioState = getPortfolioState({ gbmReturnsByMonth: {} });
-    generateSimulatedReturns(portfolioState);
+    // Lasciamo che renderDashboard ricostruisca macroByMonth in base al flag
+    // enableMacroScenario e generi nuovi rendimenti simulati coerenti.
     renderDashboard();
 }
 
@@ -162,7 +170,9 @@ function renderDashboard(options = {}) {
     // existing return logic. The data is stored for future integration but
     // remains unused by the current performance calculations.
     const totalMonths = Math.max(0, Math.round(timeHorizon * 12));
-    const macroScenarioByMonth = buildMacroByMonth(macroPhases, totalMonths);
+    const activeMacroPhases = getActiveMacroPhases();
+    macroPhases = activeMacroPhases;
+    const macroScenarioByMonth = buildMacroByMonth(activeMacroPhases, totalMonths);
     macroByMonth = macroScenarioByMonth;
 
     const portfolioState = getPortfolioState(

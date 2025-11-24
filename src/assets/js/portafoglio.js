@@ -129,7 +129,9 @@ function getPortfolioState(overrides = {}) {
         assetClassSensitivities,
         macroTilt,
         macroDrift,
+        enableMacroScenario,
         enableMacroAdjustments,
+        selectedMacroScenario,
         ...overrides,
     };
 }
@@ -186,7 +188,7 @@ function generateSimulatedReturns(state) {
     const macroByMonth = state.macroByMonth;
     const sensitivities = state.assetClassSensitivities || {};
     const macroDrift = state.macroDrift || defaultMacroDriftConfig;
-    const enableMacroScenario = Boolean(state.enableMacroAdjustments);
+    const enableMacroScenario = state.enableMacroScenario ?? state.enableMacroAdjustments ?? false;
     const numeroMesi = timeHorizon * 12;
     const simulatedReturns = [];
 
@@ -238,7 +240,7 @@ function calculateReturnsByMonth(state, mese, returnFunctions) {
     const macroByMonth = state.macroByMonth;
     const sensitivities = state.assetClassSensitivities || {};
     const macroTilt = state.macroTilt;
-    const enableMacroAdjustments = Boolean(state.enableMacroAdjustments);
+    const enableMacroAdjustments = state.enableMacroScenario ?? state.enableMacroAdjustments ?? false;
     const macroState = enableMacroAdjustments ? macroByMonth?.[mese] : undefined;
 
     if (enableMacroAdjustments && !macroState && !macroDataMissingLogged) {

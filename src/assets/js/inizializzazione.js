@@ -13,7 +13,7 @@ const {
     allocation: defaultAllocation = {},
     currencyInfo = {},
     returnFunctions: returnFunctionDefinitions = [],
-    macroPhases: defaultMacroPhases = [],
+    macroScenarioPresets: defaultMacroScenarioPresets = {},
     assetClassSensitivities: defaultAssetClassSensitivities = {},
     macroTiltConfig = {},
     macroDriftConfig = {},

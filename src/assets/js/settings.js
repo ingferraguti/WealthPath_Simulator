@@ -39,8 +39,9 @@
   function updateMacroStatus(isEnabled) {
     const status = getMacroStatus();
     if (status) {
+      const selectedLabel = macroScenarioPresets?.[selectedMacroScenario]?.label || selectedMacroScenario || 'scenario';
       status.textContent = isEnabled
-        ? 'Gli scenari macro sono attivi e influenzano le simulazioni.'
+        ? `Gli scenari macro sono attivi (${selectedLabel}) e influenzano le simulazioni.`
         : 'Gli scenari macro sono disattivati.';
     }
   }

@@ -418,7 +418,20 @@
                     </button>
                 </div>
                 <div class="modal-body">
-                    <p class="text-muted mb-0">Questa sezione impostazioni è attualmente vuota. Aggiungi le opzioni qui quando saranno disponibili.</p>
+                    <div class="form-group">
+                        <label class="font-weight-bold" for="simulationSeed">Seed della simulazione</label>
+                        <div class="input-group">
+                            <input class="form-control" type="text" id="simulationSeed" aria-describedby="seedHelp" />
+                            <div class="input-group-append">
+                                <button class="btn btn-outline-secondary" type="button" id="generateSeedButton">Nuovo seed</button>
+                            </div>
+                        </div>
+                        <small class="form-text text-muted" id="seedHelp">Usa questo seed per riprodurre gli stessi numeri casuali nelle simulazioni. Generiamo un seed casuale automatico se non ne imposti uno.</small>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-between mt-3">
+                        <span class="text-muted" id="seedStatus"></span>
+                        <button class="btn btn-primary" type="button" id="applySeedButton">Applica seed</button>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" type="button" data-dismiss="modal">Chiudi</button>
@@ -427,17 +440,19 @@
         </div>
     </div>
 
+        <script src="assets/js/random-seed.js"></script>
         <script src="assets/js/config/labels.js"></script>
         <script src="assets/js/config/marketData.js"></script>
         <script src="assets/js/inizializzazione.js"></script>
-	<script src="assets/js/portafoglio.js"></script>
-	<script src="assets/js/funzionigrafici.js"></script>
-	<script src="assets/js/tabelle.js"></script>
-	<script src="assets/js/portfolio_dashboard.js"></script>
-	<script src="assets/js/pdf.js"></script>
+        <script src="assets/js/portafoglio.js"></script>
+        <script src="assets/js/funzionigrafici.js"></script>
+        <script src="assets/js/tabelle.js"></script>
+        <script src="assets/js/portfolio_dashboard.js"></script>
+        <script src="assets/js/pdf.js"></script>
 
     <script src="assets/js/jquery.min.js"></script>
     <script src="assets/bootstrap/js/bootstrap.min.js"></script>
+    <script src="assets/js/settings.js"></script>
     <script src="assets/js/bs-charts.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-easing/1.4.1/jquery.easing.js"></script>
     <script src="assets/js/theme.js"></script>

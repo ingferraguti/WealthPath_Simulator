@@ -38,7 +38,7 @@ function getAllocationDisplayLabel(assetKey) {
 
 function getOroPerformance() {
     // Genera un numero casuale uniforme tra 0 e 1
-    const random = Math.random();
+    const random = window.randomSeedManager?.random() ?? Math.random();
 
     // Trasforma il numero casuale per adattarlo all'intervallo [0.87, 1.17]
     // con una media che tende a 1.07

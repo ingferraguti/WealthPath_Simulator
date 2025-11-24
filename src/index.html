@@ -201,7 +201,12 @@
                                     <div class="card-body">
                                         <div class="d-flex justify-content-between align-items-start flex-wrap">
                                             <div>
-                                                <h6 class="text-primary font-weight-bold m-0">Simulazione</h6>
+                                                <div class="d-flex align-items-center">
+                                                    <h6 class="text-primary font-weight-bold m-0">Simulazione</h6>
+                                                    <a class="text-secondary ml-2" href="#" data-toggle="modal" data-target="#settingsModal" aria-label="Apri impostazioni">
+                                                        <i class="fas fa-cog"></i>
+                                                    </a>
+                                                </div>
                                                 <p class="mb-0 text-muted small">Rilancia la simulazione con i parametri attuali.</p>
                                             </div>
                                             <button class="btn btn-primary" type="button" id="rerunSimulationBtn" onclick="randomizePerformance()">🔄 Nuova simulazione</button>

@@ -13,6 +13,8 @@ const {
     currencyInfo = {},
     returnFunctions: returnFunctionDefinitions = [],
     macroPhases: defaultMacroPhases = [],
+    assetClassSensitivities: defaultAssetClassSensitivities = {},
+    macroTiltConfig = {},
 } = window.marketData || {};
 
 const allocationLabel = (window.labels && window.labels.assets) || {};
@@ -26,6 +28,8 @@ let useFixedReturnMode = false; // Toggle di debug per applicare rendimenti cost
 let macroByMonth = []; // Monthly macro snapshot (inflation/policy rates), kept in sync with the time horizon
 
 const macroPhases = [...defaultMacroPhases];
+const assetClassSensitivities = { ...defaultAssetClassSensitivities };
+const macroTilt = { ...macroTiltConfig };
 
 const allocation = { ...defaultAllocation };
 

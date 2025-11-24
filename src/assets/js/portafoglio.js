@@ -54,6 +54,33 @@ function gbmMonthlyMultiplier(assetClass) {
     return Math.exp(logReturn);
 }
 
+const defaultMacroTiltConfig = {
+    additiveScale: 0.05,
+    multiplicativeScale: 0.5,
+};
+
+function applyMacroTilt(baseReturn, macroState, sensitivitiesForAsset = {}, macroTilt = {}) {
+    if (!macroState || baseReturn === undefined || baseReturn === null) {
+        return baseReturn;
+    }
+
+    const { inflationBeta = 0, policyRateBeta = 0, realRateBeta = 0 } = sensitivitiesForAsset || {};
+    const {
+        additiveScale = defaultMacroTiltConfig.additiveScale,
+        multiplicativeScale = defaultMacroTiltConfig.multiplicativeScale,
+    } = macroTilt || {};
+
+    const macroSignal =
+        inflationBeta * (macroState?.inflation ?? 0) +
+        policyRateBeta * (macroState?.policyRate ?? 0) +
+        realRateBeta * (macroState?.realRate ?? 0);
+
+    const additiveTilt = macroSignal * additiveScale;
+    const multiplicativeTilt = 1 + macroSignal * multiplicativeScale;
+
+    return (baseReturn + additiveTilt) * multiplicativeTilt;
+}
+
 function getPortfolioState(overrides = {}) {
     return {
         allocation,
@@ -68,6 +95,8 @@ function getPortfolioState(overrides = {}) {
         macroPhases,
         macroByMonth,
         useFixedReturnMode,
+        assetClassSensitivities,
+        macroTilt,
         ...overrides,
     };
 }
@@ -160,14 +189,23 @@ function calculateReturnsByMonth(state, mese, returnFunctions) {
     // Calcola i rendimenti per ciascun asset class utilizzando le funzioni fornite
     const returnsByMonth = state.gbmReturnsByMonth || {};
     const returnFunctionsToUse = returnFunctions || state.returnFunctions || [];
+    const macroByMonth = state.macroByMonth;
+    const sensitivities = state.assetClassSensitivities || {};
+    const macroTilt = state.macroTilt;
+
     const returns = returnFunctionsToUse.map(func => {
         const { assetClass, calculateReturn } = func;
+        const sensitivitiesForAsset = sensitivities[assetClass];
+        const macroState = Array.isArray(macroByMonth) ? macroByMonth[mese] : undefined;
 
         // Calcola il rendimento per l'asset class utilizzando il mese come input
-        const returnValue =
-            returnsByMonth?.[mese]?.[assetClass] !== undefined
-                ? returnsByMonth[mese][assetClass]
-                : calculateReturn(mese);
+        const simulatedReturn = returnsByMonth?.[mese]?.[assetClass];
+        const baseReturn =
+            simulatedReturn !== undefined
+                ? simulatedReturn
+                : calculateReturn(mese, { macroState, sensitivitiesForAsset, baseReturn: simulatedReturn });
+
+        const returnValue = applyMacroTilt(baseReturn, macroState, sensitivitiesForAsset, macroTilt);
 
         return {
             assetClass: assetClass,

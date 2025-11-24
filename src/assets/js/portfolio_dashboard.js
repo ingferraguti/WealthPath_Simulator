@@ -79,6 +79,16 @@ function rerunCurrentSimulation() {
 }
 
 
+// Gestisce l'aggiornamento della frequenza di ribilanciamento e del relativo intervallo
+function handleRebalanceFrequencyChange(value) {
+    const numericValue = Number(value);
+
+    rebalanceFrequencyPerYear = numericValue;
+    rebalanceEveryMonths = rebalanceFrequencyPerYear === 0 ? 0 : Math.round(12 / rebalanceFrequencyPerYear);
+
+    renderDashboard();
+}
+
 
 
 // Funzione per rendere il dashboard
@@ -91,12 +101,28 @@ function renderDashboard() {
     document.getElementById('allocationbox').innerHTML = `
         <div class="portfolio-dashboard container">
             <!--<h1 class="text-center my-4">Data Dashboard per l'Asset Allocation del Portafoglio</h1>-->
-            
+
             <div class="row">
                 <div class="allocation-sliders col mb-4">
+                    <div class="card shadow border-left-primary py-2 mb-4">
+                        <div class="card-body">
+                            <div class="row align-items-center no-gutters">
+                                <div class="col mr-2">
+                                    <label class="form-label mb-0">
+                                        <div class="text-uppercase text-primary font-weight-bold text-xs mb-1"><span>Frequenza di ribilanciamento</span></div>
+                                        <select class="form-control" onchange="handleRebalanceFrequencyChange(this.value)">
+                                            <option value="0" ${rebalanceFrequencyPerYear === 0 ? "selected" : ""}>Nessun ribilanciamento</option>
+                                            <option value="1" ${rebalanceFrequencyPerYear === 1 ? "selected" : ""}>1 volta all'anno</option>
+                                            <option value="2" ${rebalanceFrequencyPerYear === 2 ? "selected" : ""}>2 volte all'anno</option>
+                                        </select>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     ${Object.keys(allocation).map(asset => `
                         <!--
-						<div class="slider-container mb-3">
+                                                <div class="slider-container mb-3">
                             <label class="form-label">${asset}: ${allocation[asset]}%</label>
 							
                         </div>

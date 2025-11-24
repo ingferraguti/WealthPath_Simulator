@@ -41,13 +41,17 @@ function getMonthlyData(options = {}) {
         ? macroScenarioByMonth.slice(0, totalMonths)
         : [];
 
-    if (portfolioValues.length > 0) {
+    if (portfolioValues.length > 0 && totalMonths > 0) {
         const years = totalMonths / 12;
-        const annualReturn = Math.pow(portfolioValues[portfolioValues.length - 1] / portfolioValues[0], 1 / years) - 1;
+        const investedCapital = calculateContribValue(portfolioState, totalMonths);
+        const finalValue = portfolioValues[portfolioValues.length - 1];
+        const annualReturn = investedCapital > 0
+            ? Math.pow(finalValue / investedCapital, 1 / years) - 1
+            : 0;
         const annualReturnValue = document.getElementById('annualReturnValue');
 
         if (annualReturnValue) {
-            annualReturnValue.textContent = (annualReturn * 100).toFixed(2) + "%";
+            annualReturnValue.textContent = `${(annualReturn * 100).toFixed(2)}%`;
         }
     }
 

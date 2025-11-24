@@ -135,8 +135,11 @@ const gbmParams = {
  * Ritorna un numero casuale z ~ Normale(0,1).
  */
 function rngNormal() {
-  let u1 = Math.random();
-  let u2 = Math.random();
+  const random = window.randomSeedManager?.random
+    ? () => window.randomSeedManager.random()
+    : Math.random;
+  let u1 = random();
+  let u2 = random();
   let z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
   return z;
 }

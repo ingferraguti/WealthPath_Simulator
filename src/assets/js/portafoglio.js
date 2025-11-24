@@ -32,8 +32,8 @@ const fixedReturnByAsset = {
 
 // Generatore Box-Muller per z ~ N(0,1), utilizzato dal modello GBM mensile.
 function rngNormal() {
-    const u1 = Math.random();
-    const u2 = Math.random();
+    const u1 = window.randomSeedManager?.random() ?? Math.random();
+    const u2 = window.randomSeedManager?.random() ?? Math.random();
     const z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
     return z0;
 }

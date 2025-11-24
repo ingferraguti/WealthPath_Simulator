@@ -28,6 +28,7 @@ let rebalanceFrequencyPerYear = defaultRebalanceFrequencyPerYear ?? 1; // numero
 let rebalanceEveryMonths = rebalanceFrequencyPerYear === 0 ? 0 : Math.round(12 / rebalanceFrequencyPerYear); // ogni quanti mesi ribilanciare
 // Disabilitiamo per impostazione predefinita la simulazione Monte Carlo e gli scenari macro.
 let useFixedReturnMode = true; // Toggle di debug per applicare rendimenti costanti per asset class
+let enableMonteCarlo = false; // Switch dedicato per attivare la simulazione Monte Carlo
 let enableMacroScenario = false; // Switch di UI per applicare gli scenari macro ai rendimenti
 let enableMacroAdjustments = enableMacroScenario; // Alias compatibile con il resto della logica di simulazione
 const macroScenarioKeys = Object.keys(defaultMacroScenarioPresets);

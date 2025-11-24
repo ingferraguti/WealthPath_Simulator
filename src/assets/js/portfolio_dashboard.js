@@ -10,6 +10,32 @@ function sanitizeAllocationValue(rawValue) {
 
 let macroChartInstance = null;
 
+// Popola il select degli scenari macro usando i preset disponibili.
+function renderMacroScenarioOptions() {
+    const scenarioSelect = document.getElementById('macroScenarioSelect');
+    if (!scenarioSelect) {
+        return;
+    }
+
+    const presets = window.macroScenarioPresets || {};
+    const currentValue = scenarioSelect.value || selectedMacroScenario;
+
+    scenarioSelect.innerHTML = '';
+
+    Object.entries(presets).forEach(([key, preset]) => {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = preset?.label || key;
+        scenarioSelect.appendChild(option);
+    });
+
+    const resolvedValue = presets[currentValue] ? currentValue : Object.keys(presets)[0];
+    if (resolvedValue) {
+        selectedMacroScenario = resolvedValue;
+        scenarioSelect.value = resolvedValue;
+    }
+}
+
 // Aggiorna i controlli di UI per riflettere lo stato globale degli scenari macro.
 // In questo modo sia la card in pagina sia lo switch del modal restano sincronizzati
 // con le variabili `selectedMacroScenario` ed `enableMacroScenario`.
@@ -19,6 +45,8 @@ function syncMacroScenarioControls() {
     const modalToggle = document.getElementById('macroScenarioToggle');
     const macroStatus = document.getElementById('macroStatus');
     const isEnabled = Boolean(enableMacroScenario);
+
+    renderMacroScenarioOptions();
 
     if (scenarioSelect) {
         scenarioSelect.value = selectedMacroScenario;
@@ -40,9 +68,16 @@ function syncMacroScenarioControls() {
 // ricalcolo del percorso macro per i mesi di orizzonte impostati.
 function handleMacroScenarioChange(scenarioKey) {
     const presets = window.macroScenarioPresets || {};
-    const preset = presets[scenarioKey] || presets.base || macroPhases;
+    const preset = presets[scenarioKey] || presets.baseline || presets.base || { macroPhases };
+    const presetPhases = Array.isArray(preset)
+        ? preset
+        : Array.isArray(preset.macroPhases)
+            ? preset.macroPhases
+            : [];
 
-    macroPhases = window.cloneMacroPhases ? window.cloneMacroPhases(preset) : preset.map(phase => ({ ...phase }));
+    macroPhases = window.cloneMacroPhases
+        ? window.cloneMacroPhases(presetPhases)
+        : presetPhases.map(phase => ({ ...phase }));
     selectedMacroScenario = scenarioKey;
 
     // Svuotiamo i rendimenti simulati per forzare una rigenerazione coerente

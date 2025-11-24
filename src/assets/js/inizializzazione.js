@@ -29,11 +29,15 @@ let rebalanceEveryMonths = rebalanceFrequencyPerYear === 0 ? 0 : Math.round(12 /
 let useFixedReturnMode = false; // Toggle di debug per applicare rendimenti costanti per asset class
 let enableMacroScenario = defaultEnableMacroAdjustments ?? false; // Switch di UI per applicare gli scenari macro ai rendimenti
 let enableMacroAdjustments = enableMacroScenario; // Alias compatibile con il resto della logica di simulazione
-let selectedMacroScenario = "base"; // Identifica il preset scelto dalla UI
+const macroScenarioKeys = Object.keys(defaultMacroScenarioPresets);
+let selectedMacroScenario = macroScenarioKeys.includes("baseline")
+    ? "baseline"
+    : macroScenarioKeys[0] || "custom"; // Identifica il preset scelto dalla UI
 let macroByMonth = []; // Monthly macro snapshot (inflation/policy rates), kept in sync with the time horizon
 
+const defaultMacroPhases = defaultMacroScenarioPresets?.[selectedMacroScenario]?.macroPhases || [];
 let macroPhases = (window.cloneMacroPhases
-    ? window.cloneMacroPhases(window.macroScenarioPresets?.[selectedMacroScenario] || defaultMacroPhases)
+    ? window.cloneMacroPhases(defaultMacroPhases)
     : [...defaultMacroPhases]);
 const assetClassSensitivities = { ...defaultAssetClassSensitivities };
 const macroTilt = { ...macroTiltConfig };

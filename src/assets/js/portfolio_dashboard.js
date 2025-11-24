@@ -152,6 +152,7 @@ function getRiskLevel() {
 function toggleFixedReturns(isEnabled) {
         const modeChanged = useFixedReturnMode !== isEnabled;
         useFixedReturnMode = isEnabled;
+        enableMonteCarlo = !isEnabled;
 
         // Ripulisce i rendimenti memorizzati così che il passaggio tra modalità
         // fissa e Monte Carlo ricrei il percorso coerente con il nuovo flag.
@@ -160,6 +161,12 @@ function toggleFixedReturns(isEnabled) {
         }
 
         renderDashboard();
+}
+
+function toggleMonteCarlo(isEnabled) {
+    // Sincronizza il flag di Monte Carlo con il toggle esistente dei rendimenti fissi.
+    // Abilitare Monte Carlo equivale a disattivare i rendimenti fissi deterministici.
+    toggleFixedReturns(!isEnabled);
 }
 
 function hasSimulatedReturns(state) {
@@ -232,6 +239,11 @@ function renderDashboard(options = {}) {
     const fixedReturnSwitch = document.getElementById('fixedReturnSwitch');
     if (fixedReturnSwitch) {
         fixedReturnSwitch.checked = Boolean(useFixedReturnMode);
+    }
+
+    const monteCarloSwitch = document.getElementById('monteCarloSwitch');
+    if (monteCarloSwitch) {
+        monteCarloSwitch.checked = Boolean(enableMonteCarlo);
     }
 
     const portfolioState = getPortfolioState(

@@ -206,14 +206,21 @@
                                             <button class="btn btn-primary" type="button" id="rerunSimulationBtn" onclick="randomizePerformance()">🔄 Nuova simulazione</button>
                                         </div>
                                         <div class="row mt-3">
-                                            <div class="col-md-6">
+                                            <div class="col-md-4">
                                                 <div class="form-check form-switch">
                                                     <input class="form-check-input" type="checkbox" id="fixedReturnSwitch" onchange="toggleFixedReturns(this.checked)" checked>
                                                     <label class="form-check-label font-weight-bold" for="fixedReturnSwitch">Rendimenti fissi di debug</label>
                                                     <small class="text-muted d-block">Attivalo per applicare un rendimento costante e diverso per ogni asset; disattivo mantiene i rendimenti neutri (1x).</small>
                                                 </div>
                                             </div>
-                                            <div class="col-md-6" id="rebalanceControlContainer"></div>
+                                            <div class="col-md-4">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="monteCarloSwitch" onchange="toggleMonteCarlo(this.checked)">
+                                                    <label class="form-check-label font-weight-bold" for="monteCarloSwitch">Simulazione Monte Carlo</label>
+                                                    <small class="text-muted d-block">Abilita un percorso casuale basato su GBM per i rendimenti mensili.</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4" id="rebalanceControlContainer"></div>
                                         </div>
                                     </div>
                                 </div>

@@ -130,6 +130,12 @@ const gbmParams = {
   oro:                { muAnn: 0.03,  sigmaAnn: 0.18 }
 };
 
+const defaultMacroDriftConfig = {
+  inflationAlpha: 0.5,
+  policyRateAlpha: 0.5,
+  realRateAlpha: 0.25,
+};
+
 /**
  * Generatore di variabili N(0,1) con metodo Box–Muller.
  * Ritorna un numero casuale z ~ Normale(0,1).
@@ -151,13 +157,35 @@ function rngNormal() {
  * Se per l'assetClass non sono definiti parametri in gbmParams, ritorna 1
  * (niente rendimento).
  */
-function gbmMonthlyMultiplier(assetClass) {
+function gbmMonthlyMultiplier(assetClass, options = {}) {
   const p = gbmParams[assetClass];
   if (!p) return 1;
 
   const dt = 1.0 / 12.0; // passo temporale: 1 mese
-  const mu = p.muAnn;
   const sigma = p.sigmaAnn;
+  const {
+    macroState,
+    sensitivitiesForAsset = {},
+    enableMacroScenario = false,
+    macroDriftConfig = {},
+  } = options || {};
+
+  const { inflationBeta = 0, policyRateBeta = 0, realRateBeta = 0 } = sensitivitiesForAsset || {};
+  const { inflationAlpha, policyRateAlpha, realRateAlpha } = {
+    ...defaultMacroDriftConfig,
+    ...macroDriftConfig,
+  };
+
+  let mu = p.muAnn;
+
+  if (enableMacroScenario && macroState) {
+    const inflationImpact = (macroState.inflation ?? 0) * inflationBeta * inflationAlpha;
+    const policyRateImpact = (macroState.policyRate ?? 0) * policyRateBeta * policyRateAlpha;
+    const realRateValue = macroState.realRate ?? ((macroState.policyRate ?? 0) - (macroState.inflation ?? 0));
+    const realRateImpact = realRateValue * realRateBeta * realRateAlpha;
+
+    mu += inflationImpact + policyRateImpact + realRateImpact;
+  }
 
   const z = rngNormal();
   const logReturn = (mu - 0.5 * sigma * sigma) * dt + sigma * Math.sqrt(dt) * z;

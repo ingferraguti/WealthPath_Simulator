@@ -100,6 +100,11 @@
       additiveScale: 0.05,
       multiplicativeScale: 0.5,
     },
+    macroDriftConfig: {
+      inflationAlpha: 0.5,
+      policyRateAlpha: 0.5,
+      realRateAlpha: 0.25,
+    },
     returnFunctions: [
       {
         assetClass: "azionarioGlobale",

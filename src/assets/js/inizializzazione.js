@@ -16,6 +16,7 @@ const {
     macroPhases: defaultMacroPhases = [],
     assetClassSensitivities: defaultAssetClassSensitivities = {},
     macroTiltConfig = {},
+    macroDriftConfig = {},
 } = window.marketData || {};
 
 const allocationLabel = (window.labels && window.labels.assets) || {};
@@ -32,6 +33,7 @@ let macroByMonth = []; // Monthly macro snapshot (inflation/policy rates), kept 
 const macroPhases = [...defaultMacroPhases];
 const assetClassSensitivities = { ...defaultAssetClassSensitivities };
 const macroTilt = { ...macroTiltConfig };
+const macroDrift = { ...macroDriftConfig };
 
 const allocation = { ...defaultAllocation };
 

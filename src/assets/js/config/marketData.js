@@ -81,34 +81,52 @@
         regimeTag: "disinflation",
       },
     ],
+    // Sensibilità macroeconomiche predefinite per ciascuna asset class.
+    // Le beta descrivono la direzione dell'impatto:
+    // - i governativi a lunga scadenza sono sensibili ai tassi (beta negativa sui policy rate),
+    // - i titoli indicizzati all'inflazione reagiscono positivamente all'inflazione,
+    // - l'azionario globale viene modellato come sensibile al tasso reale (policy rate - inflazione).
+    assetClassSensitivities: {
+      azionarioGlobale: { realRateBeta: -0.6 },
+      obblGovEU10: { policyRateBeta: -1.1 },
+      obblGovEU3: { policyRateBeta: -0.5 },
+      obblEUInflLinked: { inflationBeta: 0.9 },
+      obblCorporate: { policyRateBeta: -0.3, inflationBeta: 0.2 },
+      materiePrime: { inflationBeta: 0.4 },
+      oro: { inflationBeta: 0.6 },
+    },
+    macroTiltConfig: {
+      additiveScale: 0.05,
+      multiplicativeScale: 0.5,
+    },
     returnFunctions: [
       {
         assetClass: "azionarioGlobale",
-        calculateReturn: mese => 1.01,
+        calculateReturn: (mese, options = {}) => 1.01,
       },
       {
         assetClass: "obblGovEU10",
-        calculateReturn: mese => 1,
+        calculateReturn: (mese, options = {}) => 1,
       },
       {
         assetClass: "obblGovEU3",
-        calculateReturn: mese => 1,
+        calculateReturn: (mese, options = {}) => 1,
       },
       {
         assetClass: "obblEUInflLinked",
-        calculateReturn: mese => 1,
+        calculateReturn: (mese, options = {}) => 1,
       },
       {
         assetClass: "obblCorporate",
-        calculateReturn: mese => 1,
+        calculateReturn: (mese, options = {}) => 1,
       },
       {
         assetClass: "materiePrime",
-        calculateReturn: mese => 1,
+        calculateReturn: (mese, options = {}) => 1,
       },
       {
         assetClass: "oro",
-        calculateReturn: mese => 1,
+        calculateReturn: (mese, options = {}) => 1,
       },
     ],
   };

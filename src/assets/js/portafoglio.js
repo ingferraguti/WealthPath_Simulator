@@ -65,6 +65,8 @@ function getPortfolioState(overrides = {}) {
         returnFunctions,
         priceRatios,
         gbmReturnsByMonth,
+        macroPhases,
+        macroByMonth,
         useFixedReturnMode,
         ...overrides,
     };

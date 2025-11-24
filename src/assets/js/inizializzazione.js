@@ -26,8 +26,9 @@ let monthlyContribution = defaultMonthlyContribution ?? 0;
 let timeHorizon = defaultTimeHorizonYears ?? 1; // Orizzonte temporale in anni
 let rebalanceFrequencyPerYear = defaultRebalanceFrequencyPerYear ?? 1; // numero di ribilanciamenti per anno
 let rebalanceEveryMonths = rebalanceFrequencyPerYear === 0 ? 0 : Math.round(12 / rebalanceFrequencyPerYear); // ogni quanti mesi ribilanciare
-let useFixedReturnMode = false; // Toggle di debug per applicare rendimenti costanti per asset class
-let enableMacroScenario = defaultEnableMacroAdjustments ?? false; // Switch di UI per applicare gli scenari macro ai rendimenti
+// Disabilitiamo per impostazione predefinita la simulazione Monte Carlo e gli scenari macro.
+let useFixedReturnMode = true; // Toggle di debug per applicare rendimenti costanti per asset class
+let enableMacroScenario = false; // Switch di UI per applicare gli scenari macro ai rendimenti
 let enableMacroAdjustments = enableMacroScenario; // Alias compatibile con il resto della logica di simulazione
 let selectedMacroScenario = "base"; // Identifica il preset scelto dalla UI
 let macroByMonth = []; // Monthly macro snapshot (inflation/policy rates), kept in sync with the time horizon

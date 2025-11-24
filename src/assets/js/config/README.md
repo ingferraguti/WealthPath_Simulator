@@ -15,6 +15,13 @@
 - `currencyInfo` (Object): metadati valutari per ogni asset class.
   - `currency` (string): codice valuta (es. `EUR`, `USD`).
   - `hedged` (boolean): `true` se la posizione è coperta dal rischio cambio.
+- `macroPhases` (Array<Object>): fasi macroeconomiche opzionali che descrivono l'evoluzione attesa di inflazione e tassi di policy.
+  - `name` (string): etichetta descrittiva della fase.
+  - `startMonth` (number): mese di inizio (0 = primo mese della simulazione).
+  - `duration` (number): durata in mesi.
+  - `inflationFrom` / `inflationTo` (number): inflazione annualizzata ai confini della fase.
+  - `rateFrom` / `rateTo` (number): tassi di policy annualizzati ai confini della fase.
+  - `regimeTag` (string): tag rapido del regime (es. `normal`, `inflation_hike`).
 - `returnFunctions` (Array<Object>): lista di configurazioni di rendimento per asset class.
   - `assetClass` (string): chiave dell'asset (deve corrispondere a `allocation`).
   - `calculateReturn` (function): funzione che restituisce il moltiplicatore mensile (es. `1.01` per +1%). La funzione riceve l'indice di mese.

@@ -96,10 +96,17 @@ function handleRebalanceFrequencyChange(value) {
 // Funzione per rendere il dashboard
 function renderDashboard(options = {}) {
     const { keepExistingReturns = false } = options;
+    // Expand macro phases into a month-by-month snapshot without altering
+    // existing return logic. The data is stored for future integration but
+    // remains unused by the current performance calculations.
+    const totalMonths = Math.max(0, Math.round(timeHorizon * 12));
+    const macroScenarioByMonth = buildMacroByMonth(macroPhases, totalMonths);
+    macroByMonth = macroScenarioByMonth;
+
     const portfolioState = getPortfolioState(
         keepExistingReturns
-            ? { gbmReturnsByMonth }
-            : {}
+            ? { gbmReturnsByMonth, macroByMonth: macroScenarioByMonth }
+            : { macroByMonth: macroScenarioByMonth }
     );
 
     if (!hasSimulatedReturns(portfolioState)) {

@@ -44,6 +44,43 @@
       materiePrime: { currency: "USD", hedged: false },
       oro: { currency: "USD", hedged: false },
     },
+    // High-level macro regimes used to shape the future macro scenario.
+    // Each phase is optional and represents a multi-month period with
+    // gradually changing inflation and policy rates. The structure is
+    // intentionally decoupled from asset returns so it can be wired in
+    // later without affecting the current dashboards.
+    macroPhases: [
+      {
+        name: "Baseline normal",
+        startMonth: 0,
+        duration: 12,
+        inflationFrom: 0.02,
+        inflationTo: 0.0225,
+        rateFrom: 0.02,
+        rateTo: 0.0225,
+        regimeTag: "normal",
+      },
+      {
+        name: "Inflation hike",
+        startMonth: 12,
+        duration: 12,
+        inflationFrom: 0.0225,
+        inflationTo: 0.07,
+        rateFrom: 0.0225,
+        rateTo: 0.05,
+        regimeTag: "inflation_hike",
+      },
+      {
+        name: "Disinflation reset",
+        startMonth: 24,
+        duration: 12,
+        inflationFrom: 0.07,
+        inflationTo: 0.025,
+        rateFrom: 0.05,
+        rateTo: 0.03,
+        regimeTag: "disinflation",
+      },
+    ],
     returnFunctions: [
       {
         assetClass: "azionarioGlobale",

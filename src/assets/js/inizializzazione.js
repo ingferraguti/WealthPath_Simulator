@@ -12,6 +12,7 @@ const {
     allocation: defaultAllocation = {},
     currencyInfo = {},
     returnFunctions: returnFunctionDefinitions = [],
+    macroPhases: defaultMacroPhases = [],
 } = window.marketData || {};
 
 const allocationLabel = (window.labels && window.labels.assets) || {};
@@ -22,6 +23,9 @@ let timeHorizon = defaultTimeHorizonYears ?? 1; // Orizzonte temporale in anni
 let rebalanceFrequencyPerYear = defaultRebalanceFrequencyPerYear ?? 1; // numero di ribilanciamenti per anno
 let rebalanceEveryMonths = rebalanceFrequencyPerYear === 0 ? 0 : Math.round(12 / rebalanceFrequencyPerYear); // ogni quanti mesi ribilanciare
 let useFixedReturnMode = false; // Toggle di debug per applicare rendimenti costanti per asset class
+let macroByMonth = []; // Monthly macro snapshot (inflation/policy rates), kept in sync with the time horizon
+
+const macroPhases = [...defaultMacroPhases];
 
 const allocation = { ...defaultAllocation };
 

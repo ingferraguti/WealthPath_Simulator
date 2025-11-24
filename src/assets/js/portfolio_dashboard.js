@@ -150,7 +150,15 @@ function getRiskLevel() {
 
 
 function toggleFixedReturns(isEnabled) {
+        const modeChanged = useFixedReturnMode !== isEnabled;
         useFixedReturnMode = isEnabled;
+
+        // Ripulisce i rendimenti memorizzati così che il passaggio tra modalità
+        // fissa e Monte Carlo ricrei il percorso coerente con il nuovo flag.
+        if (modeChanged) {
+            gbmReturnsByMonth = {};
+        }
+
         renderDashboard();
 }
 

@@ -207,6 +207,25 @@ function renderDashboard(options = {}) {
     const macroScenarioByMonth = buildMacroByMonth(activeMacroPhases, totalMonths);
     macroByMonth = macroScenarioByMonth;
 
+    const rebalanceControl = document.getElementById('rebalanceControlContainer');
+    if (rebalanceControl) {
+        rebalanceControl.innerHTML = `
+            <label class="form-label mb-0 w-100">
+                <div class="text-uppercase text-primary font-weight-bold text-xs mb-1"><span>Frequenza di ribilanciamento</span></div>
+                <select class="form-control" onchange="handleRebalanceFrequencyChange(this.value)">
+                    <option value="0" ${rebalanceFrequencyPerYear === 0 ? "selected" : ""}>Nessun ribilanciamento</option>
+                    <option value="1" ${rebalanceFrequencyPerYear === 1 ? "selected" : ""}>1 volta all'anno</option>
+                    <option value="2" ${rebalanceFrequencyPerYear === 2 ? "selected" : ""}>2 volte all'anno</option>
+                </select>
+            </label>
+        `;
+    }
+
+    const fixedReturnSwitch = document.getElementById('fixedReturnSwitch');
+    if (fixedReturnSwitch) {
+        fixedReturnSwitch.checked = Boolean(useFixedReturnMode);
+    }
+
     const portfolioState = getPortfolioState(
         keepExistingReturns
             ? { gbmReturnsByMonth, macroByMonth: macroScenarioByMonth, enableMacroAdjustments: macroScenarioEnabled }
@@ -222,22 +241,6 @@ function renderDashboard(options = {}) {
 
             <div class="row">
                 <div class="allocation-sliders col mb-4">
-                    <div class="card shadow border-left-primary py-2 mb-4">
-                        <div class="card-body">
-                            <div class="row align-items-center no-gutters">
-                                <div class="col mr-2">
-                                    <label class="form-label mb-0">
-                                        <div class="text-uppercase text-primary font-weight-bold text-xs mb-1"><span>Frequenza di ribilanciamento</span></div>
-                                        <select class="form-control" onchange="handleRebalanceFrequencyChange(this.value)">
-                                            <option value="0" ${rebalanceFrequencyPerYear === 0 ? "selected" : ""}>Nessun ribilanciamento</option>
-                                            <option value="1" ${rebalanceFrequencyPerYear === 1 ? "selected" : ""}>1 volta all'anno</option>
-                                            <option value="2" ${rebalanceFrequencyPerYear === 2 ? "selected" : ""}>2 volte all'anno</option>
-                                        </select>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                     ${Object.keys(allocation).map(asset => `
                         <!--
                                                 <div class="slider-container mb-3">

@@ -34,7 +34,11 @@ function getMonthlyData() {
 
     if (portfolioValues.length > 0) {
         const years = totalMonths / 12;
-        const annualReturn = Math.pow(portfolioValues[portfolioValues.length - 1] / portfolioValues[0], 1 / years) - 1;
+        const finalPortfolioValue = portfolioValues[portfolioValues.length - 1];
+        const investedCapital = calculateContribValue(portfolioState, totalMonths);
+        const annualReturn = investedCapital > 0
+            ? Math.pow(finalPortfolioValue / investedCapital, 1 / years) - 1
+            : 0;
         const annualReturnValue = document.getElementById('annualReturnValue');
 
         if (annualReturnValue) {

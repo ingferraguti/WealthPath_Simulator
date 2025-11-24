@@ -91,25 +91,49 @@ const defaultMacroDriftConfig = {
 };
 
 function applyMacroTilt(baseReturn, macroState, sensitivitiesForAsset = {}, macroTilt = {}) {
-    if (!macroState || baseReturn === undefined || baseReturn === null) {
+    // Defensive fallback: if any of the inputs is missing or not a finite number, keep
+    // the original return. This preserves backward compatibility when the macro
+    // scenario is disabled or when legacy call sites don't provide sensitivities
+    // or macro tilt settings.
+    if (!macroState || !sensitivitiesForAsset || !macroTilt) {
+        return baseReturn;
+    }
+    if (!isFinite(baseReturn)) {
         return baseReturn;
     }
 
+    // Extract betas: they describe how the asset reacts to macro factors. Defaults
+    // are zero to avoid accidental amplification when sensitivities are missing.
     const { inflationBeta = 0, policyRateBeta = 0, realRateBeta = 0 } = sensitivitiesForAsset || {};
+
+    // Extract tilt scales with conservative defaults. The additive scale keeps the
+    // macro contribution small (a “tilt”, not a full re-pricing), while the
+    // multiplicative scale attenuates the effect further to avoid overpowering the
+    // base simulation.
     const {
         additiveScale = defaultMacroTiltConfig.additiveScale,
         multiplicativeScale = defaultMacroTiltConfig.multiplicativeScale,
     } = macroTilt || {};
 
-    const macroSignal =
-        inflationBeta * (macroState?.inflation ?? 0) +
-        policyRateBeta * (macroState?.policyRate ?? 0) +
-        realRateBeta * (macroState?.realRate ?? 0);
+    // Combine macro factors into a single signal. Inflation and rates influence
+    // returns differently across asset classes; multiplying by betas captures that
+    // directional sensitivity while remaining linear and easy to tune.
+    const signal =
+        (macroState?.inflation ?? 0) * inflationBeta +
+        (macroState?.policyRate ?? 0) * policyRateBeta +
+        (macroState?.realRate ?? 0) * realRateBeta;
 
-    const additiveTilt = macroSignal * additiveScale;
-    const multiplicativeTilt = 1 + macroSignal * multiplicativeScale;
+    // Translate the macro signal into a small additive tilt. This is intentionally
+    // lightweight to avoid double-counting returns already produced by the base
+    // model (including inflation effects baked into certain asset classes).
+    const additiveTilt = signal * additiveScale;
 
-    return (baseReturn + additiveTilt) * multiplicativeTilt;
+    // Apply the tilt as a mild multiplicative adjustment. Taxes/inflation can erode
+    // returns, while favorable macro winds can slightly enhance them; scaling keeps
+    // this effect subtle and easy to calibrate.
+    const adjusted = baseReturn * (1 + additiveTilt * multiplicativeScale);
+
+    return adjusted;
 }
 
 function getPortfolioState(overrides = {}) {

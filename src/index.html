@@ -399,6 +399,32 @@
                     </div>
                 </div>
             </div>
+
+            <div class="row">
+                <div class="col-12 col-lg-6">
+                    <div class="card shadow mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="text-primary font-weight-bold m-0">Scenario macro (inflazione e tassi)</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group mb-3">
+                                <label class="font-weight-bold" for="macroScenarioSelect">Seleziona lo scenario</label>
+                                <select class="form-control" id="macroScenarioSelect" onchange="handleMacroScenarioChange(this.value)">
+                                    <option value="base">Base / Normale</option>
+                                    <option value="inflationHike">Inflazione in salita</option>
+                                    <option value="custom">Personalizzato</option>
+                                </select>
+                                <small class="form-text text-muted">Il preset scelto aggiorna le fasi macro e ricalcola il percorso mensile con inflazione e tassi coerenti.</small>
+                            </div>
+                            <div class="custom-control custom-switch">
+                                <input class="custom-control-input" type="checkbox" id="macroScenarioEnableSwitch" onchange="toggleMacroScenario(this.checked)">
+                                <label class="custom-control-label" for="macroScenarioEnableSwitch">Applica scenario macro ai rendimenti</label>
+                            </div>
+                            <small class="form-text text-muted">Quando attivo, i rendimenti simulati vengono aggiustati in base al profilo di inflazione e tassi selezionato.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     <footer class="bg-white sticky-footer">

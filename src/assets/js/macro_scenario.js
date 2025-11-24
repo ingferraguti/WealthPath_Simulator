@@ -13,6 +13,49 @@
     regimeTag: "normal",
   };
 
+  // Preset macro scenarios exposed globally so the UI can swap between them.
+  // Each preset is a collection of phases describing the inflation/policy path.
+  const macroScenarioPresets = {
+    base: (global.marketData?.macroPhases || []).map(phase => ({ ...phase })),
+    inflationHike: [
+      {
+        name: "Shock inflazionistico",
+        startMonth: 0,
+        duration: 12,
+        inflationFrom: 0.03,
+        inflationTo: 0.08,
+        rateFrom: 0.025,
+        rateTo: 0.055,
+        regimeTag: "inflation_hike",
+      },
+      {
+        name: "Tassi restrittivi",
+        startMonth: 12,
+        duration: 12,
+        inflationFrom: 0.08,
+        inflationTo: 0.045,
+        rateFrom: 0.055,
+        rateTo: 0.06,
+        regimeTag: "restrictive",
+      },
+      {
+        name: "Normalizzazione",
+        startMonth: 24,
+        duration: 12,
+        inflationFrom: 0.045,
+        inflationTo: 0.025,
+        rateFrom: 0.06,
+        rateTo: 0.03,
+        regimeTag: "normalization",
+      },
+    ],
+    custom: (global.marketData?.macroPhases || []).map(phase => ({ ...phase })),
+  };
+
+  function cloneMacroPhases(phases = []) {
+    return phases.map(phase => ({ ...phase }));
+  }
+
   /**
    * Performs a simple linear interpolation between two values.
    *
@@ -110,4 +153,6 @@
 
   global.buildMacroByMonth = buildMacroByMonth;
   global.logMacroScenarioPreview = logMacroScenarioPreview;
+  global.macroScenarioPresets = macroScenarioPresets;
+  global.cloneMacroPhases = cloneMacroPhases;
 })(window);

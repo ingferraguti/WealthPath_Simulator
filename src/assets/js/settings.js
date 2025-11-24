@@ -7,6 +7,14 @@
     return document.getElementById('seedStatus');
   }
 
+  function getMacroToggle() {
+    return document.getElementById('macroScenarioToggle');
+  }
+
+  function getMacroStatus() {
+    return document.getElementById('macroStatus');
+  }
+
   function updateSeedInputValue() {
     const input = getSeedInput();
     if (!input || !window.randomSeedManager) return;
@@ -17,6 +25,23 @@
     const status = getSeedStatus();
     if (status) {
       status.textContent = message;
+    }
+  }
+
+  function updateMacroToggleState() {
+    const toggle = getMacroToggle();
+    if (!toggle) return;
+    const isEnabled = typeof enableMacroAdjustments !== 'undefined' ? Boolean(enableMacroAdjustments) : false;
+    toggle.checked = isEnabled;
+    updateMacroStatus(isEnabled);
+  }
+
+  function updateMacroStatus(isEnabled) {
+    const status = getMacroStatus();
+    if (status) {
+      status.textContent = isEnabled
+        ? 'Gli scenari macro sono attivi e influenzano le simulazioni.'
+        : 'Gli scenari macro sono disattivati.';
     }
   }
 
@@ -34,6 +59,7 @@
     const applyButton = document.getElementById('applySeedButton');
     const generateButton = document.getElementById('generateSeedButton');
     const modal = document.getElementById('settingsModal');
+    const macroToggle = getMacroToggle();
 
     if (applyButton) {
       applyButton.addEventListener('click', () => {
@@ -54,10 +80,23 @@
       });
     }
 
+    if (macroToggle) {
+      macroToggle.addEventListener('change', () => {
+        if (typeof enableMacroAdjustments !== 'undefined') {
+          enableMacroAdjustments = macroToggle.checked;
+          updateMacroStatus(enableMacroAdjustments);
+          if (typeof randomizePerformance === 'function') {
+            randomizePerformance();
+          }
+        }
+      });
+    }
+
     if (modal) {
       const handleShow = () => {
         updateSeedInputValue();
         updateStatus('');
+        updateMacroToggleState();
       };
 
       if (window.jQuery && typeof window.jQuery(modal).on === 'function') {

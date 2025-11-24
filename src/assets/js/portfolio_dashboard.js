@@ -8,6 +8,8 @@ function sanitizeAllocationValue(rawValue) {
     return Math.min(Math.max(safeValue, 0), 100);
 }
 
+let macroChartInstance = null;
+
 // Aggiorna i controlli di UI per riflettere lo stato globale degli scenari macro.
 // In questo modo sia la card in pagina sia lo switch del modal restano sincronizzati
 // con le variabili `selectedMacroScenario` ed `enableMacroScenario`.
@@ -155,6 +157,96 @@ function handleRebalanceFrequencyChange(value) {
     // Manteniamo lo stesso scenario di performance simulata per poter confrontare
     // l'impatto del ribilanciamento sui risultati complessivi.
     renderDashboard({ keepExistingReturns: true });
+}
+
+function getMacroChartData(macroScenarioByMonth = []) {
+    const safeMacro = Array.isArray(macroScenarioByMonth) ? macroScenarioByMonth : [];
+    const labels = safeMacro.map(point => `Mese ${Number(point.month ?? 0) + 1}`);
+
+    return {
+        labels,
+        datasets: [
+            {
+                label: 'Inflazione annualizzata',
+                data: safeMacro.map(point => Number((point?.inflation ?? 0) * 100)),
+                borderColor: 'rgba(255, 99, 132, 1)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                pointRadius: 2,
+                fill: false,
+            },
+            {
+                label: 'Policy rate',
+                data: safeMacro.map(point => Number((point?.policyRate ?? 0) * 100)),
+                borderColor: 'rgba(54, 162, 235, 1)',
+                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                pointRadius: 2,
+                fill: false,
+            },
+        ],
+    };
+}
+
+function renderMacroChart(macroScenarioByMonth) {
+    const macroChartElement = document.getElementById('macroChart');
+    if (!macroChartElement) {
+        return;
+    }
+
+    if (macroChartInstance) {
+        macroChartInstance.destroy();
+        macroChartInstance = null;
+    }
+
+    const chartData = getMacroChartData(macroScenarioByMonth);
+    const macroCtx = macroChartElement.getContext('2d');
+    macroChartInstance = new Chart(macroCtx, {
+        type: 'line',
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            elements: {
+                line: {
+                    tension: 0.2,
+                },
+            },
+            legend: {
+                position: 'bottom',
+            },
+            tooltips: {
+                callbacks: {
+                    label: function(tooltipItem, data) {
+                        const datasetLabel = data.datasets[tooltipItem.datasetIndex].label || '';
+                        const value = Number(tooltipItem.yLabel).toFixed(2);
+                        return `${datasetLabel}: ${value}%`;
+                    },
+                },
+            },
+            scales: {
+                xAxes: [
+                    {
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Mesi',
+                        },
+                    },
+                ],
+                yAxes: [
+                    {
+                        ticks: {
+                            callback: function(value) {
+                                return `${Number(value).toFixed(1)}%`;
+                            },
+                        },
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Valori annualizzati',
+                        },
+                    },
+                ],
+            },
+        },
+    });
 }
 
 
@@ -325,12 +417,28 @@ function renderDashboard(options = {}) {
                
             </div>
 	`;
-	document.getElementById('performancebox').innerHTML =  `
-	 <div class="portfolio-performance">
+        document.getElementById('performancebox').innerHTML =  `
+         <div class="portfolio-performance">
                 <h2>${getLabel('ui.portfolioPerformance')}</h2>
-                <canvas id="lineChart"></canvas>
+                <div class="row">
+                    <div class="col-12 col-xl-8 mb-4">
+                        <div class="card shadow border-left-primary py-2 h-100">
+                            <div class="card-body">
+                                <canvas id="lineChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-xl-4 mb-4">
+                        <div class="card shadow border-left-primary py-2 h-100">
+                            <div class="card-body">
+                                <div class="text-uppercase text-primary font-weight-bold text-xs mb-3">Scenario macro</div>
+                                <canvas id="macroChart" style="min-height: 260px;"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-	`;
+        `;
 
 document.getElementById('perfomancetotale').innerHTML =  `<span>  ${ euro.format(calculatePortfolioValue(portfolioState, timeHorizon * 12) - calculateContribValue(portfolioState, timeHorizon * 12))  }</span>`;
 
@@ -422,6 +530,12 @@ new Chart(doughnutCtx, {
             }
         }
     });
+
+    // Il grafico macro viene ricreato a ogni render: macroByMonth è ricostruito
+    // quando cambia lo scenario selezionato o l'orizzonte temporale, quindi
+    // distruggere e rigenerare la chart garantisce che il canvas rifletta sempre
+    // l'ultimo snapshot di inflazione e policy rate.
+    renderMacroChart(macroScenarioByMonth);
 	
 	
 	

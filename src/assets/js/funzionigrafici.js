@@ -26,11 +26,20 @@ function getDoughnutData() {
 
 
 // Funzione per calcolare i dati del grafico mensile dell'andamento del portafoglio
-function getMonthlyData() {
-    const portfolioState = getPortfolioState();
-    const totalMonths = timeHorizon * 12;
+function getMonthlyData(options = {}) {
+    const {
+        portfolioState: providedPortfolioState,
+        macroScenarioByMonth = macroByMonth,
+        macroEnabled = enableMacroScenario,
+    } = options || {};
+
+    const portfolioState = providedPortfolioState || getPortfolioState();
+    const totalMonths = Math.max(0, Math.round(timeHorizon * 12));
     const portfolioValues = Array.from({ length: totalMonths }, (_, i) => calculatePortfolioValue(portfolioState, i));
     const contributionValues = Array.from({ length: totalMonths }, (_, i) => calculateContribValue(portfolioState, i));
+    const macroPoints = macroEnabled && Array.isArray(macroScenarioByMonth)
+        ? macroScenarioByMonth.slice(0, totalMonths)
+        : [];
 
     if (portfolioValues.length > 0) {
         const years = totalMonths / 12;
@@ -42,22 +51,49 @@ function getMonthlyData() {
         }
     }
 
-    return {
-        labels: Array.from({ length: timeHorizon * 12 }, (_, i) => `Mese ${i + 1}`),
-        datasets: [
+    const datasets = [
+        {
+            label: 'Valore del Portafoglio',
+            data: portfolioValues,
+            borderColor: '#36A2EB',
+            fill: false,
+            yAxisID: 'valueAxis',
+        },
+        {
+            label: 'Contributi',
+            data: contributionValues,
+            borderColor: '#16D2A1',
+            fill: false,
+            yAxisID: 'valueAxis',
+        },
+    ];
+
+    if (macroPoints.length) {
+        datasets.push(
             {
-                label: 'Valore del Portafoglio',
-                data: portfolioValues,
-                borderColor: '#36A2EB',
+                label: 'Inflazione annualizzata',
+                data: macroPoints.map(point => Number((point?.inflation ?? 0) * 100)),
+                borderColor: 'rgba(255, 99, 132, 1)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                pointRadius: 2,
                 fill: false,
+                yAxisID: 'macroAxis',
             },
-                        {
-                label: 'Contributi',
-                data: contributionValues,
-                borderColor: '#16D2A1',
+            {
+                label: 'Policy rate',
+                data: macroPoints.map(point => Number((point?.policyRate ?? 0) * 100)),
+                borderColor: 'rgba(255, 206, 86, 1)',
+                backgroundColor: 'rgba(255, 206, 86, 0.1)',
+                pointRadius: 2,
                 fill: false,
-            },
-        ],
+                yAxisID: 'macroAxis',
+            }
+        );
+    }
+
+    return {
+        labels: Array.from({ length: totalMonths }, (_, i) => `Mese ${i + 1}`),
+        datasets,
     };
 }
 

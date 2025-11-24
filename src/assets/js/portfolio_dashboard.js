@@ -7,9 +7,6 @@ function sanitizeAllocationValue(rawValue) {
 
     return Math.min(Math.max(safeValue, 0), 100);
 }
-
-let macroChartInstance = null;
-
 // Popola il select degli scenari macro usando i preset disponibili.
 function renderMacroScenarioOptions() {
     const scenarioSelect = document.getElementById('macroScenarioSelect');
@@ -194,98 +191,6 @@ function handleRebalanceFrequencyChange(value) {
     renderDashboard({ keepExistingReturns: true });
 }
 
-function getMacroChartData(macroScenarioByMonth = []) {
-    const safeMacro = Array.isArray(macroScenarioByMonth) ? macroScenarioByMonth : [];
-    const labels = safeMacro.map(point => `Mese ${Number(point.month ?? 0) + 1}`);
-
-    return {
-        labels,
-        datasets: [
-            {
-                label: 'Inflazione annualizzata',
-                data: safeMacro.map(point => Number((point?.inflation ?? 0) * 100)),
-                borderColor: 'rgba(255, 99, 132, 1)',
-                backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                pointRadius: 2,
-                fill: false,
-            },
-            {
-                label: 'Policy rate',
-                data: safeMacro.map(point => Number((point?.policyRate ?? 0) * 100)),
-                borderColor: 'rgba(54, 162, 235, 1)',
-                backgroundColor: 'rgba(54, 162, 235, 0.1)',
-                pointRadius: 2,
-                fill: false,
-            },
-        ],
-    };
-}
-
-function renderMacroChart(macroScenarioByMonth) {
-    const macroChartElement = document.getElementById('macroChart');
-    if (!macroChartElement) {
-        return;
-    }
-
-    if (macroChartInstance) {
-        macroChartInstance.destroy();
-        macroChartInstance = null;
-    }
-
-    const chartData = getMacroChartData(macroScenarioByMonth);
-    const macroCtx = macroChartElement.getContext('2d');
-    macroChartInstance = new Chart(macroCtx, {
-        type: 'line',
-        data: chartData,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            elements: {
-                line: {
-                    tension: 0.2,
-                },
-            },
-            legend: {
-                position: 'bottom',
-            },
-            tooltips: {
-                callbacks: {
-                    label: function(tooltipItem, data) {
-                        const datasetLabel = data.datasets[tooltipItem.datasetIndex].label || '';
-                        const value = Number(tooltipItem.yLabel).toFixed(2);
-                        return `${datasetLabel}: ${value}%`;
-                    },
-                },
-            },
-            scales: {
-                xAxes: [
-                    {
-                        scaleLabel: {
-                            display: true,
-                            labelString: 'Mesi',
-                        },
-                    },
-                ],
-                yAxes: [
-                    {
-                        ticks: {
-                            callback: function(value) {
-                                return `${Number(value).toFixed(1)}%`;
-                            },
-                        },
-                        scaleLabel: {
-                            display: true,
-                            labelString: 'Valori annualizzati',
-                        },
-                    },
-                ],
-            },
-        },
-    });
-}
-
-
-
 // Funzione per rendere il dashboard
 function renderDashboard(options = {}) {
     const { keepExistingReturns = false } = options;
@@ -456,18 +361,10 @@ function renderDashboard(options = {}) {
          <div class="portfolio-performance">
                 <h2>${getLabel('ui.portfolioPerformance')}</h2>
                 <div class="row">
-                    <div class="col-12 col-xl-8 mb-4">
+                    <div class="col-12 mb-4">
                         <div class="card shadow border-left-primary py-2 h-100">
                             <div class="card-body">
                                 <canvas id="lineChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-12 col-xl-4 mb-4">
-                        <div class="card shadow border-left-primary py-2 h-100">
-                            <div class="card-body">
-                                <div class="text-uppercase text-primary font-weight-bold text-xs mb-3">Scenario macro</div>
-                                <canvas id="macroChart" style="min-height: 260px;"></canvas>
                             </div>
                         </div>
                     </div>
@@ -538,39 +435,83 @@ new Chart(doughnutCtx, {
 
 
 
-    // Render del grafico lineare
+    // Render del grafico lineare (portfolio + eventuali curve macro)
     const lineCtx = document.getElementById('lineChart').getContext('2d');
+    const macroLinesVisible = macroScenarioEnabled && macroScenarioByMonth.length > 0;
+    const lineChartData = getMonthlyData({
+        portfolioState,
+        macroScenarioByMonth,
+        macroEnabled: macroLinesVisible,
+    });
+
     new Chart(lineCtx, {
         type: 'line',
-        data: getMonthlyData(),
+        data: lineChartData,
         options: {
             plugins: {
                 datalabels: {
                     display: function(context) {
                         return context.active;
                     },
-                    formatter: function(value) {
-                        return `€${Number(value).toFixed(2)}`;
+                    formatter: function(value, context) {
+                        const isMacroDataset = context?.dataset?.yAxisID === 'macroAxis';
+                        const formattedValue = isMacroDataset
+                            ? `${Number(value).toFixed(2)}%`
+                            : `€${Number(value).toFixed(2)}`;
+
+                        return formattedValue;
                     }
                 }
             },
             tooltips: {
                 callbacks: {
                     label: function(tooltipItem, data) {
-                        const label = data.datasets[tooltipItem.datasetIndex].label || '';
+                        const dataset = data.datasets[tooltipItem.datasetIndex] || {};
+                        const label = dataset.label || '';
+                        const isMacroDataset = dataset.yAxisID === 'macroAxis';
                         const value = Number(tooltipItem.yLabel).toFixed(2);
-                        return `${label}: €${value}`;
+                        const formattedValue = isMacroDataset ? `${value}%` : `€${value}`;
+
+                        return `${label}: ${formattedValue}`;
                     }
                 }
-            }
+            },
+            scales: {
+                yAxes: [
+                    {
+                        id: 'valueAxis',
+                        position: 'left',
+                        ticks: {
+                            callback: function(value) {
+                                return `€${Number(value).toFixed(0)}`;
+                            },
+                        },
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Valore portafoglio',
+                        },
+                    },
+                    {
+                        id: 'macroAxis',
+                        position: 'right',
+                        display: macroLinesVisible,
+                        gridLines: {
+                            drawOnChartArea: false,
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return `${Number(value).toFixed(1)}%`;
+                            },
+                        },
+                        scaleLabel: {
+                            display: macroLinesVisible,
+                            labelString: 'Indicatori macro (%)',
+                        },
+                    },
+                ],
+            },
         }
     });
-
-    // Il grafico macro viene ricreato a ogni render: macroByMonth è ricostruito
-    // quando cambia lo scenario selezionato o l'orizzonte temporale, quindi
-    // distruggere e rigenerare la chart garantisce che il canvas rifletta sempre
-    // l'ultimo snapshot di inflazione e policy rate.
-    renderMacroChart(macroScenarioByMonth);
 	
 	
 	

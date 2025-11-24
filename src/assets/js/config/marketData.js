@@ -24,6 +24,7 @@
       initialInvestment: 10000,
       monthlyContribution: 200,
       timeHorizonYears: 1,
+      rebalanceFrequencyPerYear: 1, // numero di ribilanciamenti per anno
     },
     allocation: {
       azionarioGlobale: 30,

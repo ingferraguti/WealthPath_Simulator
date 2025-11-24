@@ -288,7 +288,7 @@ function calculateTotalInvestment(portafoglio) {
 // calcolati da `returnFunctions` presenti nello stato fornito.
 function calculatePortfolioValue(state, mese) {
 
-        const { allocation, initialInvestment, monthlyContribution, returnFunctions } = state;
+        const { allocation, initialInvestment, monthlyContribution, returnFunctions, rebalanceEveryMonths } = state;
 
         let portafoglio = calculateInvestmentComponents(allocation, initialInvestment);
 
@@ -301,15 +301,18 @@ function calculatePortfolioValue(state, mese) {
                 let returns = calculateReturnsByMonth(state, i, returnFunctions);
 
                 portafoglio = addMonthlyContribution(portafoglio, allocation, monthlyContribution);
-		
-		//bilanciamento annuale
-		//if (i % 12 === 0) {portafoglio = calculateInvestmentComponents(allocation, calculateTotalInvestment(portafoglio));}
-		
+
+                // Il ribilanciamento è opzionale: la frequenza, espressa in mesi, proviene da state.rebalanceEveryMonths
+                if (rebalanceEveryMonths > 0 && i > 0 && i % rebalanceEveryMonths === 0) {
+                        const total = calculateTotalInvestment(portafoglio);
+                        portafoglio = calculateInvestmentComponents(allocation, total);
+                }
+
                 //applichiamo i rendimenti al portafoglio
                 portafoglio = calculatePortfolioReturns(portafoglio, returns)
-		
-		
-	}
+
+
+        }
 	return calculateTotalInvestment(portafoglio);
 	
 }

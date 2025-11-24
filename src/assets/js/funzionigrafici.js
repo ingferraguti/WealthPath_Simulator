@@ -35,16 +35,21 @@ function getMonthlyData(options = {}) {
 
     const portfolioState = providedPortfolioState || getPortfolioState();
     const totalMonths = Math.max(0, Math.round(timeHorizon * 12));
-    const portfolioValues = Array.from({ length: totalMonths }, (_, i) => calculatePortfolioValue(portfolioState, i));
-    const contributionValues = Array.from({ length: totalMonths }, (_, i) => calculateContribValue(portfolioState, i));
+    // Simuliamo dal mese 0 (stato iniziale) fino al mese finale "totalMonths" incluso.
+    // Questo genera, per esempio, 13 punti su 1 anno: mese 0 ... mese 12.
+    const monthsRange = totalMonths + 1;
+    const portfolioValues = Array.from({ length: monthsRange }, (_, i) => calculatePortfolioValue(portfolioState, i));
+    const contributionValues = Array.from({ length: monthsRange }, (_, i) => calculateContribValue(portfolioState, i));
     const macroPoints = macroEnabled && Array.isArray(macroScenarioByMonth)
-        ? macroScenarioByMonth.slice(0, totalMonths)
+        ? macroScenarioByMonth.slice(0, monthsRange)
         : [];
 
     if (portfolioValues.length > 0 && totalMonths > 0) {
         const years = totalMonths / 12;
+        // Il valore finale ora corrisponde al mese "totalMonths", lo stesso usato
+        // per la Performance Totale %, così CAGR e performance condividono l'orizzonte.
         const investedCapital = calculateContribValue(portfolioState, totalMonths);
-        const finalValue = portfolioValues[portfolioValues.length - 1];
+        const finalValue = portfolioValues[totalMonths];
         const annualReturn = investedCapital > 0
             ? Math.pow(finalValue / investedCapital, 1 / years) - 1
             : 0;
@@ -96,7 +101,8 @@ function getMonthlyData(options = {}) {
     }
 
     return {
-        labels: Array.from({ length: totalMonths }, (_, i) => `Mese ${i + 1}`),
+        // Etichette coerenti con l'intervallo [mese 0 ... mese totalMonths].
+        labels: Array.from({ length: monthsRange }, (_, i) => `Mese ${i}`),
         datasets,
     };
 }

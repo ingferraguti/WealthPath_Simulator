@@ -15,41 +15,103 @@
 
   // Preset macro scenarios exposed globally so the UI can swap between them.
   // Each preset is a collection of phases describing the inflation/policy path.
+  function normalizeMacroScenarioPresets(rawPresets = {}) {
+    if (typeof rawPresets !== "object" || rawPresets === null) {
+      return {};
+    }
+
+    return Object.entries(rawPresets).reduce((acc, [key, preset]) => {
+      const macroPhases = Array.isArray(preset?.macroPhases)
+        ? preset.macroPhases.map(phase => ({ ...phase }))
+        : [];
+
+      acc[key] = {
+        label: preset?.label || key,
+        description: preset?.description,
+        macroPhases,
+      };
+
+      return acc;
+    }, {});
+  }
+
+  const fallbackMacroScenarioPresets = {
+    baseline: {
+      label: "Scenario base",
+      description: "Profilo moderato con rialzi iniziali e successiva disinflazione.",
+      macroPhases: [
+        {
+          name: "Baseline normal",
+          startMonth: 0,
+          duration: 12,
+          inflationFrom: 0.02,
+          inflationTo: 0.0225,
+          rateFrom: 0.02,
+          rateTo: 0.0225,
+          regimeTag: "normal",
+        },
+        {
+          name: "Inflation hike",
+          startMonth: 12,
+          duration: 12,
+          inflationFrom: 0.0225,
+          inflationTo: 0.07,
+          rateFrom: 0.0225,
+          rateTo: 0.05,
+          regimeTag: "inflation_hike",
+        },
+        {
+          name: "Disinflation reset",
+          startMonth: 24,
+          duration: 12,
+          inflationFrom: 0.07,
+          inflationTo: 0.025,
+          rateFrom: 0.05,
+          rateTo: 0.03,
+          regimeTag: "disinflation",
+        },
+      ],
+    },
+    stagflation: {
+      label: "Stagflazione moderata",
+      description: "Inflazione appiccicosa e tassi elevati per un periodo prolungato.",
+      macroPhases: [
+        {
+          name: "Sticky inflation plateau",
+          startMonth: 0,
+          duration: 18,
+          inflationFrom: 0.05,
+          inflationTo: 0.06,
+          rateFrom: 0.04,
+          rateTo: 0.055,
+          regimeTag: "stagflation_plateau",
+        },
+        {
+          name: "Late disinflation",
+          startMonth: 18,
+          duration: 12,
+          inflationFrom: 0.06,
+          inflationTo: 0.03,
+          rateFrom: 0.055,
+          rateTo: 0.035,
+          regimeTag: "late_disinflation",
+        },
+      ],
+    },
+    neutral: {
+      label: "Neutro (flat)",
+      description: "Profilo piatto usato come fallback quando gli scenari macro sono disattivati.",
+      macroPhases: [],
+    },
+  };
+
+  const normalizedPresets = normalizeMacroScenarioPresets(
+    global.marketData?.macroScenarioPresets || fallbackMacroScenarioPresets
+  );
+
   const macroScenarioPresets = {
-    base: (global.marketData?.macroPhases || []).map(phase => ({ ...phase })),
-    inflationHike: [
-      {
-        name: "Shock inflazionistico",
-        startMonth: 0,
-        duration: 12,
-        inflationFrom: 0.03,
-        inflationTo: 0.08,
-        rateFrom: 0.025,
-        rateTo: 0.055,
-        regimeTag: "inflation_hike",
-      },
-      {
-        name: "Tassi restrittivi",
-        startMonth: 12,
-        duration: 12,
-        inflationFrom: 0.08,
-        inflationTo: 0.045,
-        rateFrom: 0.055,
-        rateTo: 0.06,
-        regimeTag: "restrictive",
-      },
-      {
-        name: "Normalizzazione",
-        startMonth: 24,
-        duration: 12,
-        inflationFrom: 0.045,
-        inflationTo: 0.025,
-        rateFrom: 0.06,
-        rateTo: 0.03,
-        regimeTag: "normalization",
-      },
-    ],
-    custom: (global.marketData?.macroPhases || []).map(phase => ({ ...phase })),
+    ...fallbackMacroScenarioPresets,
+    ...normalizedPresets,
   };
 
   function cloneMacroPhases(phases = []) {

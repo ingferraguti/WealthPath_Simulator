@@ -8,6 +8,7 @@
 // debug è disattivato, l'assegnazione avviene tramite un percorso GBM
 // monoscenario; in caso contrario vengono usati moltiplicatori deterministici.
 let gbmReturnsByMonth = {};
+let macroDataMissingLogged = false;
 // Parametri annualizzati (media e volatilità) per il GBM per asset class note.
 // Se un'asset class non compare, la simulazione ricadrà su un comportamento
 // deterministico, mantenendo l'attuale fallback mock/statico.
@@ -97,6 +98,7 @@ function getPortfolioState(overrides = {}) {
         useFixedReturnMode,
         assetClassSensitivities,
         macroTilt,
+        enableMacroAdjustments,
         ...overrides,
     };
 }
@@ -192,11 +194,17 @@ function calculateReturnsByMonth(state, mese, returnFunctions) {
     const macroByMonth = state.macroByMonth;
     const sensitivities = state.assetClassSensitivities || {};
     const macroTilt = state.macroTilt;
+    const enableMacroAdjustments = Boolean(state.enableMacroAdjustments);
+    const macroState = enableMacroAdjustments ? macroByMonth?.[mese] : undefined;
+
+    if (enableMacroAdjustments && !macroState && !macroDataMissingLogged) {
+        console.debug("Macro scenario non disponibile: i rendimenti verranno calcolati senza aggiustamenti macro.");
+        macroDataMissingLogged = true;
+    }
 
     const returns = returnFunctionsToUse.map(func => {
         const { assetClass, calculateReturn } = func;
         const sensitivitiesForAsset = sensitivities[assetClass];
-        const macroState = Array.isArray(macroByMonth) ? macroByMonth[mese] : undefined;
 
         // Calcola il rendimento per l'asset class utilizzando il mese come input
         const simulatedReturn = returnsByMonth?.[mese]?.[assetClass];
@@ -205,7 +213,9 @@ function calculateReturnsByMonth(state, mese, returnFunctions) {
                 ? simulatedReturn
                 : calculateReturn(mese, { macroState, sensitivitiesForAsset, baseReturn: simulatedReturn });
 
-        const returnValue = applyMacroTilt(baseReturn, macroState, sensitivitiesForAsset, macroTilt);
+        const returnValue = enableMacroAdjustments
+            ? applyMacroTilt(baseReturn, macroState, sensitivitiesForAsset, macroTilt)
+            : baseReturn;
 
         return {
             assetClass: assetClass,

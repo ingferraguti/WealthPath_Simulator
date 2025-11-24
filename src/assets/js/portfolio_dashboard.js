@@ -86,14 +86,21 @@ function handleRebalanceFrequencyChange(value) {
     rebalanceFrequencyPerYear = numericValue;
     rebalanceEveryMonths = rebalanceFrequencyPerYear === 0 ? 0 : Math.round(12 / rebalanceFrequencyPerYear);
 
-    renderDashboard();
+    // Manteniamo lo stesso scenario di performance simulata per poter confrontare
+    // l'impatto del ribilanciamento sui risultati complessivi.
+    renderDashboard({ keepExistingReturns: true });
 }
 
 
 
 // Funzione per rendere il dashboard
-function renderDashboard() {
-    const portfolioState = getPortfolioState();
+function renderDashboard(options = {}) {
+    const { keepExistingReturns = false } = options;
+    const portfolioState = getPortfolioState(
+        keepExistingReturns
+            ? { gbmReturnsByMonth }
+            : {}
+    );
 
     if (!hasSimulatedReturns(portfolioState)) {
         generateSimulatedReturns(portfolioState);

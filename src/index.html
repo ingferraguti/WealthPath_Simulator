@@ -418,6 +418,17 @@
                     </button>
                 </div>
                 <div class="modal-body">
+                    <div class="form-group d-flex align-items-center justify-content-between">
+                        <div>
+                            <label class="font-weight-bold mb-1" for="macroScenarioToggle">Scenari macroeconomici</label>
+                            <p class="mb-0 text-muted small">Abilita o disabilita l'impatto degli scenari macro sulle simulazioni.</p>
+                        </div>
+                        <div class="custom-control custom-switch">
+                            <input class="custom-control-input" type="checkbox" id="macroScenarioToggle" />
+                            <label class="custom-control-label" for="macroScenarioToggle"></label>
+                        </div>
+                    </div>
+                    <small class="form-text text-muted" id="macroStatus"></small>
                     <div class="form-group">
                         <label class="font-weight-bold" for="simulationSeed">Seed della simulazione</label>
                         <div class="input-group">

@@ -8,6 +8,64 @@ function sanitizeAllocationValue(rawValue) {
     return Math.min(Math.max(safeValue, 0), 100);
 }
 
+// Aggiorna i controlli di UI per riflettere lo stato globale degli scenari macro.
+// In questo modo sia la card in pagina sia lo switch del modal restano sincronizzati
+// con le variabili `selectedMacroScenario` ed `enableMacroScenario`.
+function syncMacroScenarioControls() {
+    const scenarioSelect = document.getElementById('macroScenarioSelect');
+    const toggleSwitch = document.getElementById('macroScenarioEnableSwitch');
+    const modalToggle = document.getElementById('macroScenarioToggle');
+    const macroStatus = document.getElementById('macroStatus');
+    const isEnabled = Boolean(enableMacroScenario);
+
+    if (scenarioSelect) {
+        scenarioSelect.value = selectedMacroScenario;
+    }
+    if (toggleSwitch) {
+        toggleSwitch.checked = isEnabled;
+    }
+    if (modalToggle) {
+        modalToggle.checked = isEnabled;
+    }
+    if (macroStatus) {
+        macroStatus.textContent = isEnabled
+            ? 'Gli scenari macro sono attivi e influenzano le simulazioni.'
+            : 'Gli scenari macro sono disattivati.';
+    }
+}
+
+// Applica il preset selezionato aggiornando lo stato globale e forzando il
+// ricalcolo del percorso macro per i mesi di orizzonte impostati.
+function handleMacroScenarioChange(scenarioKey) {
+    const presets = window.macroScenarioPresets || {};
+    const preset = presets[scenarioKey] || presets.base || macroPhases;
+
+    macroPhases = window.cloneMacroPhases ? window.cloneMacroPhases(preset) : preset.map(phase => ({ ...phase }));
+    selectedMacroScenario = scenarioKey;
+
+    // Svuotiamo i rendimenti simulati per forzare una rigenerazione coerente
+    // con la nuova traiettoria macro.
+    gbmReturnsByMonth = {};
+
+    renderDashboard();
+    syncMacroScenarioControls();
+}
+
+// Attiva o disattiva l'uso degli scenari macro sui rendimenti simulati.
+// Questo flag viene propagato anche al resto della logica tramite
+// `enableMacroAdjustments` per mantenere la compatibilità con il calcolo esistente.
+function toggleMacroScenario(isEnabled) {
+    enableMacroScenario = isEnabled;
+    enableMacroAdjustments = isEnabled;
+
+    // Rimuoviamo i rendimenti congelati così che il ricalcolo includa/subisca
+    // l'effetto del flag di scenario macro aggiornato.
+    gbmReturnsByMonth = {};
+
+    renderDashboard();
+    syncMacroScenarioControls();
+}
+
 function handleAllocationInput(asset, inputElement) {
     const sanitizedValue = sanitizeAllocationValue(inputElement.value);
 
@@ -104,10 +162,13 @@ function handleRebalanceFrequencyChange(value) {
 // Funzione per rendere il dashboard
 function renderDashboard(options = {}) {
     const { keepExistingReturns = false } = options;
-    // Expand macro phases into a month-by-month snapshot. When enableMacroScenario
-    // is false we explicitly rebuild macroByMonth from the neutral preset so that
-    // downstream functions receive a coherent placeholder without applying it to
-    // returns (generateSimulatedReturns/calculateReturnsByMonth guard on the flag).
+    const macroScenarioEnabled = Boolean(enableMacroScenario);
+
+    // Manteniamo allineate le variabili di stato usate dal resto della pipeline di calcolo.
+    enableMacroAdjustments = macroScenarioEnabled;
+    // Expand macro phases into a month-by-month snapshot without altering
+    // existing return logic. The data is stored for future integration but
+    // remains unused by the current performance calculations.
     const totalMonths = Math.max(0, Math.round(timeHorizon * 12));
     const activeMacroPhases = getActiveMacroPhases();
     macroPhases = activeMacroPhases;
@@ -116,8 +177,8 @@ function renderDashboard(options = {}) {
 
     const portfolioState = getPortfolioState(
         keepExistingReturns
-            ? { gbmReturnsByMonth, macroByMonth: macroScenarioByMonth }
-            : { macroByMonth: macroScenarioByMonth }
+            ? { gbmReturnsByMonth, macroByMonth: macroScenarioByMonth, enableMacroAdjustments: macroScenarioEnabled }
+            : { macroByMonth: macroScenarioByMonth, enableMacroAdjustments: macroScenarioEnabled }
     );
 
     if (!hasSimulatedReturns(portfolioState)) {
@@ -375,6 +436,10 @@ new Chart(doughnutCtx, {
 	
 	
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    syncMacroScenarioControls();
+});
 
 // Prima renderizzazione del dashboard
 renderDashboard();

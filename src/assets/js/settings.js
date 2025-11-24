@@ -31,11 +31,7 @@
   function updateMacroToggleState() {
     const toggle = getMacroToggle();
     if (!toggle) return;
-    const isEnabled = typeof enableMacroScenario !== 'undefined'
-      ? Boolean(enableMacroScenario)
-      : typeof enableMacroAdjustments !== 'undefined'
-        ? Boolean(enableMacroAdjustments)
-        : false;
+    const isEnabled = typeof enableMacroScenario !== 'undefined' ? Boolean(enableMacroScenario) : false;
     toggle.checked = isEnabled;
     updateMacroStatus(isEnabled);
   }
@@ -87,14 +83,10 @@
 
     if (macroToggle) {
       macroToggle.addEventListener('change', () => {
-        if (typeof enableMacroAdjustments !== 'undefined') {
-          enableMacroScenario = macroToggle.checked;
-          enableMacroAdjustments = enableMacroScenario;
-          updateMacroStatus(enableMacroScenario);
-          if (typeof randomizePerformance === 'function') {
-            randomizePerformance();
-          }
+        if (typeof toggleMacroScenario === 'function') {
+          toggleMacroScenario(macroToggle.checked);
         }
+        updateMacroStatus(macroToggle.checked);
       });
     }
 

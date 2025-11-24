@@ -50,6 +50,13 @@ WealthPath Simulator usa un modello di Geometric Brownian Motion per generare sc
 S(t) = S(0) * exp( (μ − 0.5σ²)t + σ * Wt )
 
 
+### ⚙️ Settings
+
+- **Parametri di mercato**: personalizza rendimenti simulati, asset allocation iniziale e valute in `src/assets/js/config/marketData.js` (sezioni `priceRatios`, `defaults`, `allocation`, `currencyInfo` e `returnFunctions`).
+- **Etichette UI**: aggiorna testi e descrizioni delle asset class modificando `src/assets/js/config/labels.js` o usando l'helper `getLabel()` esposto nello stesso file.
+- **Ordine di inclusione**: assicurati che i file nella cartella `config` vengano caricati prima degli altri script front-end (come avviene in `src/index.html`) così che i dati siano disponibili alla logica di simulazione.
+
+
 ### 🤝 Contributi
 
 Le pull-request sono benvenute.

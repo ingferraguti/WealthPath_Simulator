@@ -60,6 +60,8 @@ function getPortfolioState(overrides = {}) {
         initialInvestment,
         monthlyContribution,
         timeHorizon,
+        rebalanceFrequencyPerYear,
+        rebalanceEveryMonths,
         returnFunctions,
         priceRatios,
         gbmReturnsByMonth,

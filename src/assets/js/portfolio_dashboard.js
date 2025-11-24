@@ -66,11 +66,19 @@ function hasSimulatedReturns(state) {
     return state.gbmReturnsByMonth && Object.keys(state.gbmReturnsByMonth).length > 0;
 }
 
+function getActiveMacroPhases() {
+    const preset = macroScenarioPresets[selectedMacroScenario];
+    if (!enableMacroScenario) {
+        return macroScenarioPresets.neutral?.macroPhases || [];
+    }
+
+    return preset?.macroPhases || macroScenarioPresets.neutral?.macroPhases || [];
+}
+
 function randomizePerformance() {
     gbmReturnsByMonth = {};
-
-    const portfolioState = getPortfolioState({ gbmReturnsByMonth: {} });
-    generateSimulatedReturns(portfolioState);
+    // Lasciamo che renderDashboard ricostruisca macroByMonth in base al flag
+    // enableMacroScenario e generi nuovi rendimenti simulati coerenti.
     renderDashboard();
 }
 
@@ -96,11 +104,14 @@ function handleRebalanceFrequencyChange(value) {
 // Funzione per rendere il dashboard
 function renderDashboard(options = {}) {
     const { keepExistingReturns = false } = options;
-    // Expand macro phases into a month-by-month snapshot without altering
-    // existing return logic. The data is stored for future integration but
-    // remains unused by the current performance calculations.
+    // Expand macro phases into a month-by-month snapshot. When enableMacroScenario
+    // is false we explicitly rebuild macroByMonth from the neutral preset so that
+    // downstream functions receive a coherent placeholder without applying it to
+    // returns (generateSimulatedReturns/calculateReturnsByMonth guard on the flag).
     const totalMonths = Math.max(0, Math.round(timeHorizon * 12));
-    const macroScenarioByMonth = buildMacroByMonth(macroPhases, totalMonths);
+    const activeMacroPhases = getActiveMacroPhases();
+    macroPhases = activeMacroPhases;
+    const macroScenarioByMonth = buildMacroByMonth(activeMacroPhases, totalMonths);
     macroByMonth = macroScenarioByMonth;
 
     const portfolioState = getPortfolioState(

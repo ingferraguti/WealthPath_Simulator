@@ -13,7 +13,7 @@ const {
     allocation: defaultAllocation = {},
     currencyInfo = {},
     returnFunctions: returnFunctionDefinitions = [],
-    macroPhases: defaultMacroPhases = [],
+    macroScenarioPresets: defaultMacroScenarioPresets = {},
     assetClassSensitivities: defaultAssetClassSensitivities = {},
     macroTiltConfig = {},
     macroDriftConfig = {},
@@ -27,10 +27,25 @@ let timeHorizon = defaultTimeHorizonYears ?? 1; // Orizzonte temporale in anni
 let rebalanceFrequencyPerYear = defaultRebalanceFrequencyPerYear ?? 1; // numero di ribilanciamenti per anno
 let rebalanceEveryMonths = rebalanceFrequencyPerYear === 0 ? 0 : Math.round(12 / rebalanceFrequencyPerYear); // ogni quanti mesi ribilanciare
 let useFixedReturnMode = false; // Toggle di debug per applicare rendimenti costanti per asset class
-let enableMacroAdjustments = defaultEnableMacroAdjustments ?? false; // Flag per attivare/ignorare la logica macro
-let macroByMonth = []; // Monthly macro snapshot (inflation/policy rates), kept in sync with the time horizon
+let enableMacroScenario = defaultEnableMacroAdjustments ?? false; // Flag principale per includere o escludere la traiettoria macro.
+let enableMacroAdjustments = enableMacroScenario; // Manteniamo l'alias per compatibilità con la logica esistente sugli aggiustamenti.
+let selectedMacroScenario = "baseline";
+let macroByMonth = []; // Monthly macro snapshot (inflation/policy rates), kept in sync with the time horizon e ricostruito quando il flag cambia.
 
-const macroPhases = [...defaultMacroPhases];
+const macroScenarioPresets = {
+    neutral: { label: "Neutro (flat)", macroPhases: [] },
+    baseline: { label: "Scenario base", macroPhases: [] },
+    ...defaultMacroScenarioPresets,
+};
+
+// Identifica lo scenario di default: se la configurazione ne fornisce uno, usiamo quello,
+// altrimenti ricadiamo su baseline o neutral.
+const availableScenarioKeys = Object.keys(macroScenarioPresets);
+selectedMacroScenario = macroScenarioPresets.baseline
+    ? "baseline"
+    : availableScenarioKeys.find(key => key !== "neutral") || availableScenarioKeys[0] || "neutral";
+
+let macroPhases = macroScenarioPresets[selectedMacroScenario]?.macroPhases || macroScenarioPresets.neutral.macroPhases || [];
 const assetClassSensitivities = { ...defaultAssetClassSensitivities };
 const macroTilt = { ...macroTiltConfig };
 const macroDrift = { ...macroDriftConfig };

@@ -31,7 +31,11 @@
   function updateMacroToggleState() {
     const toggle = getMacroToggle();
     if (!toggle) return;
-    const isEnabled = typeof enableMacroAdjustments !== 'undefined' ? Boolean(enableMacroAdjustments) : false;
+    const isEnabled = typeof enableMacroScenario !== 'undefined'
+      ? Boolean(enableMacroScenario)
+      : typeof enableMacroAdjustments !== 'undefined'
+        ? Boolean(enableMacroAdjustments)
+        : false;
     toggle.checked = isEnabled;
     updateMacroStatus(isEnabled);
   }
@@ -39,8 +43,9 @@
   function updateMacroStatus(isEnabled) {
     const status = getMacroStatus();
     if (status) {
+      const selectedLabel = macroScenarioPresets?.[selectedMacroScenario]?.label || selectedMacroScenario || 'scenario';
       status.textContent = isEnabled
-        ? 'Gli scenari macro sono attivi e influenzano le simulazioni.'
+        ? `Gli scenari macro sono attivi (${selectedLabel}) e influenzano le simulazioni.`
         : 'Gli scenari macro sono disattivati.';
     }
   }
@@ -83,8 +88,9 @@
     if (macroToggle) {
       macroToggle.addEventListener('change', () => {
         if (typeof enableMacroAdjustments !== 'undefined') {
-          enableMacroAdjustments = macroToggle.checked;
-          updateMacroStatus(enableMacroAdjustments);
+          enableMacroScenario = macroToggle.checked;
+          enableMacroAdjustments = enableMacroScenario;
+          updateMacroStatus(enableMacroScenario);
           if (typeof randomizePerformance === 'function') {
             randomizePerformance();
           }

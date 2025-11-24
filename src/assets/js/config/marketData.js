@@ -50,38 +50,78 @@
     // gradually changing inflation and policy rates. The structure is
     // intentionally decoupled from asset returns so it can be wired in
     // later without affecting the current dashboards.
-    macroPhases: [
-      {
-        name: "Baseline normal",
-        startMonth: 0,
-        duration: 12,
-        inflationFrom: 0.02,
-        inflationTo: 0.0225,
-        rateFrom: 0.02,
-        rateTo: 0.0225,
-        regimeTag: "normal",
+    //
+    // The presets below are used by the UI selection (selectedMacroScenario)
+    // to rebuild macroByMonth consistently.
+    macroScenarioPresets: {
+      baseline: {
+        label: "Scenario base",
+        description: "Inflazione moderata con rialzi graduali e successiva disinflazione.",
+        macroPhases: [
+          {
+            name: "Baseline normal",
+            startMonth: 0,
+            duration: 12,
+            inflationFrom: 0.02,
+            inflationTo: 0.0225,
+            rateFrom: 0.02,
+            rateTo: 0.0225,
+            regimeTag: "normal",
+          },
+          {
+            name: "Inflation hike",
+            startMonth: 12,
+            duration: 12,
+            inflationFrom: 0.0225,
+            inflationTo: 0.07,
+            rateFrom: 0.0225,
+            rateTo: 0.05,
+            regimeTag: "inflation_hike",
+          },
+          {
+            name: "Disinflation reset",
+            startMonth: 24,
+            duration: 12,
+            inflationFrom: 0.07,
+            inflationTo: 0.025,
+            rateFrom: 0.05,
+            rateTo: 0.03,
+            regimeTag: "disinflation",
+          },
+        ],
       },
-      {
-        name: "Inflation hike",
-        startMonth: 12,
-        duration: 12,
-        inflationFrom: 0.0225,
-        inflationTo: 0.07,
-        rateFrom: 0.0225,
-        rateTo: 0.05,
-        regimeTag: "inflation_hike",
+      stagflation: {
+        label: "Stagflazione moderata",
+        description: "Inflazione appiccicosa e tassi elevati per un periodo prolungato.",
+        macroPhases: [
+          {
+            name: "Sticky inflation plateau",
+            startMonth: 0,
+            duration: 18,
+            inflationFrom: 0.05,
+            inflationTo: 0.06,
+            rateFrom: 0.04,
+            rateTo: 0.055,
+            regimeTag: "stagflation_plateau",
+          },
+          {
+            name: "Late disinflation",
+            startMonth: 18,
+            duration: 12,
+            inflationFrom: 0.06,
+            inflationTo: 0.03,
+            rateFrom: 0.055,
+            rateTo: 0.035,
+            regimeTag: "late_disinflation",
+          },
+        ],
       },
-      {
-        name: "Disinflation reset",
-        startMonth: 24,
-        duration: 12,
-        inflationFrom: 0.07,
-        inflationTo: 0.025,
-        rateFrom: 0.05,
-        rateTo: 0.03,
-        regimeTag: "disinflation",
+      neutral: {
+        label: "Neutro (flat)",
+        description: "Profilo piatto usato come fallback quando gli scenari macro sono disattivati.",
+        macroPhases: [],
       },
-    ],
+    },
     // Sensibilità macroeconomiche predefinite per ciascuna asset class.
     // Le beta descrivono la direzione dell'impatto:
     // - i governativi a lunga scadenza sono sensibili ai tassi (beta negativa sui policy rate),

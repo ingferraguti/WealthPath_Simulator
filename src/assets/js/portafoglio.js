@@ -163,8 +163,11 @@ function getPortfolioState(overrides = {}) {
 // Calcola il capitale totale dopo "i" mesi sommando al capitale iniziale la
 // contribuzione mensile utilizzando i valori forniti nello stato.
 function calculateContribValue(state, i) {
-        const { initialInvestment, monthlyContribution } = state;
-        return initialInvestment + (monthlyContribution * i);
+        const initialInvestment = normalizeMoneyInput(state.initialInvestment, 0);
+        const monthlyContribution = normalizeMoneyInput(state.monthlyContribution, 0);
+        const months = normalizeFiniteNumber(i, { fallback: 0, min: 0, integer: true });
+        const contributedValue = initialInvestment + (monthlyContribution * months);
+        return Number.isFinite(contributedValue) ? contributedValue : 0;
 }
 
 
@@ -185,15 +188,19 @@ function dumbMCA (state, assetClass){
 */
 function calculateInvestmentComponents(allocation, initialInvestment) {
     // Verifica che la somma delle allocazioni sia pari a 100
-    const totalAllocation = Object.values(allocation).reduce((sum, percentage) => sum + percentage, 0);
-    if (totalAllocation !== 100) {
+    const allocationValues = Object.values(allocation);
+    const totalAllocation = allocationValues.reduce((sum, percentage) => sum + percentage, 0);
+    const hasInvalidAllocation = allocationValues.some(percentage => !Number.isFinite(percentage) || percentage < 0);
+    if (hasInvalidAllocation || Math.abs(totalAllocation - 100) > 0.000001) {
         throw new Error("La somma delle allocazioni deve essere pari a 100.");
     }
+
+    const safeInitialInvestment = normalizeMoneyInput(initialInvestment, 0);
 
     // Creazione del portafoglio con le allocazioni calcolate
     const portafoglio = Object.entries(allocation).map(([assetClass, percentage]) => ({
         assetClass: assetClass,
-        investment: (percentage / 100) * initialInvestment
+        investment: (percentage / 100) * safeInitialInvestment
     }));
 
     return portafoglio;
@@ -213,7 +220,7 @@ function generateSimulatedReturns(state) {
     const sensitivities = state.assetClassSensitivities || {};
     const macroDrift = state.macroDrift || defaultMacroDriftConfig;
     const enableMacroScenario = state.enableMacroScenario ?? state.enableMacroAdjustments ?? false;
-    const numeroMesi = timeHorizon * 12;
+    const numeroMesi = normalizeTimeHorizon(timeHorizon, 1) * 12;
     const simulatedReturns = [];
 
     for (let mese = 0; mese <= numeroMesi; mese++) {
@@ -311,9 +318,11 @@ function calculateReturnsByMonth(state, mese, returnFunctions) {
 function addMonthlyContribution(portafoglio, allocation, monthlyContribution) {
     // Calcola la somma totale delle allocazioni nell'oggetto allocation
     const totalAllocation = Object.values(allocation).reduce((sum, percentage) => sum + percentage, 0);
-    if (totalAllocation !== 100) {
+    if (!Number.isFinite(totalAllocation) || Math.abs(totalAllocation - 100) > 0.000001) {
         throw new Error("La somma delle allocazioni deve essere pari a 100.");
     }
+
+    const safeMonthlyContribution = normalizeMoneyInput(monthlyContribution, 0);
 
     // Modifica direttamente il valore di investment nel portafoglio
     portafoglio.forEach(asset => {
@@ -321,7 +330,7 @@ function addMonthlyContribution(portafoglio, allocation, monthlyContribution) {
         const assetAllocation = allocation[asset.assetClass] || 0;
 
         // Calcola la quota mensile da aggiungere all'investment
-        const contribution = (assetAllocation / 100) * monthlyContribution;
+        const contribution = (assetAllocation / 100) * safeMonthlyContribution;
 
         // Aggiorna direttamente il valore di investment
         asset.investment += contribution;
@@ -383,13 +392,18 @@ function calculatePortfolioReturns(portafoglio, returns) {
             throw new Error(`Rendimento non trovato per l'asset class: ${asset.assetClass}`);
         }
 
-        // Calcola il rendimento totale per l'asset
-        const rendimentoTotale = asset.investment * assetReturn.return;
+
+        // Applica solo valori finiti: un dato di configurazione non valido non
+        // deve propagare NaN o Infinity al resto della dashboard.
+        const currentInvestment = normalizeMoneyInput(asset.investment, 0);
+        const parsedReturn = Number(assetReturn.return);
+        const safeReturn = Number.isFinite(parsedReturn) && parsedReturn >= 0 ? parsedReturn : 1;
+        const rendimentoTotale = currentInvestment * safeReturn;
 		
 
         return {
             ...asset,
-            investment: rendimentoTotale // Arrotonda a due decimali
+            investment: Number.isFinite(rendimentoTotale) ? rendimentoTotale : 0
         };
     });
 
@@ -398,8 +412,11 @@ function calculatePortfolioReturns(portafoglio, returns) {
 
 function calculateTotalInvestment(portafoglio) {
     // Utilizza reduce per sommare tutti gli investimenti
-	console.log(portafoglio.reduce((sum, asset) => sum + asset.investment, 0));
-    return portafoglio.reduce((sum, asset) => sum + asset.investment, 0);
+    const total = portafoglio.reduce((sum, asset) => {
+        const investment = Number(asset.investment);
+        return sum + (Number.isFinite(investment) ? investment : 0);
+    }, 0);
+    return Number.isFinite(total) ? total : 0;
    
 }
 
@@ -408,15 +425,18 @@ function calculateTotalInvestment(portafoglio) {
 // calcolati da `returnFunctions` presenti nello stato fornito.
 function calculatePortfolioValue(state, mese) {
 
-        const { allocation, initialInvestment, monthlyContribution, returnFunctions, rebalanceEveryMonths } = state;
+        const { allocation, returnFunctions, rebalanceEveryMonths } = state;
+        const initialInvestment = normalizeMoneyInput(state.initialInvestment, 0);
+        const monthlyContribution = normalizeMoneyInput(state.monthlyContribution, 0);
+        const targetMonth = normalizeFiniteNumber(mese, { fallback: 0, min: 0, integer: true });
 
         let portafoglio = calculateInvestmentComponents(allocation, initialInvestment);
 
-        if (mese <= 0) {
+        if (targetMonth <= 0) {
                 return initialInvestment;
         }
 
-        for (let i = 1; i <= mese; i++)  {
+        for (let i = 1; i <= targetMonth; i++)  {
                 //rendimenti di questo mese
                 let returns = calculateReturnsByMonth(state, i, returnFunctions);
 

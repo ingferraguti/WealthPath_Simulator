@@ -50,13 +50,15 @@ function getMonthlyData(options = {}) {
         // per la Performance Totale %, così CAGR e performance condividono l'orizzonte.
         const investedCapital = calculateContribValue(portfolioState, totalMonths);
         const finalValue = portfolioValues[totalMonths];
-        const annualReturn = investedCapital > 0
-            ? Math.pow(finalValue / investedCapital, 1 / years) - 1
+        const valueRatio = safeDivide(finalValue, investedCapital, 1);
+        const annualReturn = years > 0 && valueRatio >= 0
+            ? Math.pow(valueRatio, 1 / years) - 1
             : 0;
         const annualReturnValue = document.getElementById('annualReturnValue');
 
         if (annualReturnValue) {
-            annualReturnValue.textContent = `${(annualReturn * 100).toFixed(2)}%`;
+            const safeAnnualReturn = Number.isFinite(annualReturn) ? annualReturn : 0;
+            annualReturnValue.textContent = `${(safeAnnualReturn * 100).toFixed(2)}%`;
         }
     }
 

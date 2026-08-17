@@ -66,7 +66,10 @@ function creaTabella(numeroMesi) {
                 const monthlyContributionAmount = qaz(mese);
                 const investedCapital = calculateContribValue(portfolioState, mese);
                 const monthlyIncrease = currentValue - previousValue;
-                const monthlyPerformance = (((monthlyIncrease - monthlyContributionAmount) / previousValue) * 100).toFixed(2);
+                const monthlyPerformance = safePercentage(
+                    monthlyIncrease - monthlyContributionAmount,
+                    previousValue
+                ).toFixed(2);
 
                 // Prima colonna: numero crescente del mese
                 row.insertCell().innerText = mese;
@@ -87,7 +90,10 @@ function creaTabella(numeroMesi) {
                 row.insertCell().innerText = monthlyPerformance;
 				
 				// Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = (((currentValue / investedCapital)-1)*100).toFixed(2);
+                row.insertCell().innerText = safePercentage(
+                    currentValue - investedCapital,
+                    investedCapital
+                ).toFixed(2);
 				
 				row.insertCell().innerText = wsx(mese)  ;
             }
@@ -95,8 +101,6 @@ function creaTabella(numeroMesi) {
             // Aggiungi la tabella al contenitore esistente nel DOM
             tableContainer.appendChild(table);
         }
-		
-		
 		
 		
 		
@@ -151,10 +155,18 @@ function creaTabella2(numeroAnni) {
                 row.insertCell().innerText = euro.format( incremento =  calculatePortfolioValue(portfolioState, mese*12) - calculatePortfolioValue(portfolioState, (mese-1)*12 )   );
 				
 				// Terza colonna: risultato di performance annuale
-                row.insertCell().innerText = ( ( (incremento - (qaz(mese)*12)) / (calculatePortfolioValue(portfolioState, (mese-1)*12) ))*100  ).toFixed(2);
+                row.insertCell().innerText = safePercentage(
+                    incremento - (qaz(mese) * 12),
+                    calculatePortfolioValue(portfolioState, (mese - 1) * 12)
+                ).toFixed(2);
 				
 				// Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = (((calculatePortfolioValue(portfolioState, mese*12) / calculateContribValue(portfolioState, mese*12))-1)*100).toFixed(2);
+                const annualPortfolioValue = calculatePortfolioValue(portfolioState, mese * 12);
+                const annualContributedValue = calculateContribValue(portfolioState, mese * 12);
+                row.insertCell().innerText = safePercentage(
+                    annualPortfolioValue - annualContributedValue,
+                    annualContributedValue
+                ).toFixed(2);
 				
 				
             }
@@ -162,5 +174,3 @@ function creaTabella2(numeroAnni) {
             // Aggiungi la tabella al contenitore esistente nel DOM
             annualTableContainer.appendChild(table2);
         }
-		
-		

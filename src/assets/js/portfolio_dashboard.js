@@ -2,10 +2,30 @@
 
 
 function sanitizeAllocationValue(rawValue) {
-    const parsedValue = parseInt(rawValue, 10);
-    const safeValue = Number.isNaN(parsedValue) ? 0 : parsedValue;
+    return normalizeFiniteNumber(rawValue, {
+        fallback: 0,
+        min: 0,
+        max: 100,
+        integer: true,
+    });
+}
 
-    return Math.min(Math.max(safeValue, 0), 100);
+function handleInitialInvestmentChange(rawValue) {
+    initialInvestment = normalizeMoneyInput(rawValue, initialInvestment);
+    gbmReturnsByMonth = {};
+    renderDashboard();
+}
+
+function handleMonthlyContributionChange(rawValue) {
+    monthlyContribution = normalizeMoneyInput(rawValue, monthlyContribution);
+    gbmReturnsByMonth = {};
+    renderDashboard();
+}
+
+function handleTimeHorizonChange(rawValue) {
+    timeHorizon = normalizeTimeHorizon(rawValue, timeHorizon);
+    gbmReturnsByMonth = {};
+    renderDashboard();
 }
 // Popola il select degli scenari macro usando i preset disponibili.
 function renderMacroScenarioOptions() {
@@ -133,8 +153,10 @@ function handleAllocationChange(asset, value) {
     }
 
     const adjustedTotal = Object.values(allocation).reduce((acc, val) => acc + val, 0);
-    if (adjustedTotal !== 100) {
-        allocation[otherAssets[0]] += 100 - adjustedTotal;
+    if (adjustedTotal !== 100 && otherAssets.length) {
+        const adjustmentAsset = otherAssets.find(otherAsset => allocation[otherAsset] + (100 - adjustedTotal) >= 0)
+            || otherAssets[0];
+        allocation[adjustmentAsset] = Math.max(0, allocation[adjustmentAsset] + (100 - adjustedTotal));
     }
 
     renderDashboard();
@@ -315,7 +337,7 @@ function renderDashboard(options = {}) {
 								  <div class="text-uppercase text-primary font-weight-bold text-xs mb-1"><span>
                                                                   ${getLabel('ui.initialInvestment')}
 								  </span></div>  
-									<input type="number" class="form-control" value="${initialInvestment}" onchange="initialInvestment = Number(this.value); renderDashboard();" />
+									<input type="number" class="form-control" min="0" step="100" value="${initialInvestment}" onblur="handleInitialInvestmentChange(this.value)" onkeydown="if (event.key === 'Enter') this.blur()" />
 								</label>
 							</div>
 						</div>	
@@ -331,7 +353,7 @@ function renderDashboard(options = {}) {
 								  <div class="text-uppercase text-primary font-weight-bold text-xs mb-1"><span>
                                                                   ${getLabel('ui.monthlyContribution')}
 								  </span></div>  
-									<input type="number" class="form-control" value="${monthlyContribution}" onchange="monthlyContribution = Number(this.value); renderDashboard();" />
+									<input type="number" class="form-control" min="0" step="10" value="${monthlyContribution}" onblur="handleMonthlyContributionChange(this.value)" onkeydown="if (event.key === 'Enter') this.blur()" />
 								</label>
 							</div>
 						</div>	
@@ -347,7 +369,7 @@ function renderDashboard(options = {}) {
 								  <div class="text-uppercase text-primary font-weight-bold text-xs mb-1"><span>
                                                                   ${getLabel('ui.timeHorizonYears')}
 								  </span></div>  
-										<input type="number" class="form-control" value="${timeHorizon}" onchange="timeHorizon = Number(this.value); renderDashboard();" />
+										<input type="number" class="form-control" min="1" max="${MAX_SIMULATION_YEARS}" step="1" value="${timeHorizon}" onblur="handleTimeHorizonChange(this.value)" onkeydown="if (event.key === 'Enter') this.blur()" />
 								</label>
 							</div>
 						</div>	
@@ -398,7 +420,12 @@ function renderDashboard(options = {}) {
 document.getElementById('perfomancetotale').innerHTML =  `<span>  ${ euro.format(calculatePortfolioValue(portfolioState, timeHorizon * 12) - calculateContribValue(portfolioState, timeHorizon * 12))  }</span>`;
 
 
-document.getElementById('perfomancetotaleperc').innerHTML =  `<span>  ${ parseFloat(((calculatePortfolioValue(portfolioState, timeHorizon * 12) / calculateContribValue(portfolioState, timeHorizon * 12))-1)*100).toFixed(2)+"%"  }</span>`;
+const finalPortfolioValue = calculatePortfolioValue(portfolioState, timeHorizon * 12);
+const finalContributedValue = calculateContribValue(portfolioState, timeHorizon * 12);
+const totalPerformancePercentage = finalContributedValue > 0
+    ? safePercentage(finalPortfolioValue - finalContributedValue, finalContributedValue)
+    : 0;
+document.getElementById('perfomancetotaleperc').innerHTML = `<span>${totalPerformancePercentage.toFixed(2)}%</span>`;
 	
 	
 

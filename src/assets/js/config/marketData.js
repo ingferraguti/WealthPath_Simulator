@@ -1,32 +1,23 @@
 (function (global) {
   const marketData = {
-    priceRatios: [
-      1.0177, 1.0237, 1.0509, 1.0373, 0.9769, 1.0301, 0.9776, 0.9768, 1.0152, 1.0071, 1.0343, 1.0056, 1.0247,
-      0.9751, 1.0314, 1.0214, 1.0441, 0.9971, 1.0256, 1.0227, 0.9628, 0.9982, 1.0055, 1.0238, 1.0107, 1.0361,
-      1.0227, 1.0195, 1.0112, 0.9935, 1.0159, 1.0421, 1.0247, 0.991, 0.9772, 0.9973, 1.0461, 1.0299, 0.9576,
-      0.9863, 0.9229, 0.9926, 0.9875, 1.0498, 1.0111, 0.919, 0.9747, 0.984, 0.8787, 0.8101, 0.9328, 1.0306, 0.9115,
-      0.8951, 1.0724, 1.109, 1.0862, 0.9939, 1.0837, 1.0391, 1.0381, 0.9815, 1.0387, 1.0169, 0.9581, 1.0123,
-      1.0593, 0.9984, 0.9009, 0.9644, 1.0802, 0.9608, 1.0911, 1.0365, 0.9765, 1.0725, 1.0219, 1.0333, 0.9876,
-      1.0402, 0.9755, 0.9827, 0.9811, 0.9274, 0.9115, 1.1026, 0.9731, 0.9983, 1.0493, 1.0466, 1.0102, 0.9863,
-      0.9101, 1.0493, 1.012, 1.0229, 1.0252, 0.9924, 1.0107, 1.0175, 1.05, 0.9998, 1.0209, 1.029, 0.9971, 0.9739,
-      1.0519, 0.9767, 1.0482, 1.0383, 1.0159, 1.0201, 0.9623, 1.0481, 0.9991, 1.0083, 1.0163, 1.0165, 0.9833,
-      1.02, 0.9713, 1.0057, 1.0184, 0.9829, 0.9812, 1.0568, 0.9819, 1.0216, 1.0005, 0.9754, 1.0173, 0.9319, 0.9614,
-      1.0783, 0.9933, 0.9813, 0.9395, 0.9904, 1.0652, 1.0138, 1.0023, 0.9872, 1.0415, 0.9987, 1.0036, 0.9799,
-      1.0125, 1.0229, 1.0235, 1.0258, 1.0082, 1.0133, 1.0178, 1.0025, 1.0233, 0.9993, 1.0208, 1.0181, 1.0199,
-      1.0126, 1.0522, 0.957, 0.9759, 1.0095, 1.0031, 0.9983, 1.0305, 1.0104, 1.0039, 0.9258, 1.0096, 0.9229, 1.0768,
-      1.0283, 1.0105, 1.0337, 0.9392, 1.0646, 1.0042, 0.9776, 1.0194, 1.0245, 1.0263, 1.0289, 0.9932, 0.9141, 0.8653,
-      1.108, 1.0463, 1.0251, 1.0469, 1.0653, 0.9641, 0.9686, 1.1266, 1.0414, 0.9895, 1.0245, 1.0311, 1.0452, 1.0126,
-      1.014, 1.0172, 1.0235, 0.9571, 1.0559, 0.977, 1.0419, 0.9466, 0.9735, 1.0252, 0.9157, 0.9984, 0.9123, 1.0786,
-      0.9567, 0.9054, 1.0711, 1.068, 0.9566, 1.07, 0.9747, 1.0283, 1.0159, 0.9875, 1.0593, 1.0329, 0.9745, 0.9555, 0.9703,
-      1.0921, 1.0481, 1.0114, 1.0411, 1.0301, 0.9615, 1.0423, 1.0193, 1.017, 1.0251, 1.0169, 0.9796,
-    ],
+    schemaVersion: 1,
+    assetClasses: ["azionarioGlobale", "obblGovEU10", "obblGovEU3", "obblEUInflLinked", "obblCorporate", "materiePrime", "oro"],
     defaults: {
       initialInvestment: 10000,
       monthlyContribution: 200,
-      timeHorizonYears: 1,
-      rebalanceFrequencyPerYear: 1, // numero di ribilanciamenti per anno
+      timeHorizonYears: 10,
+      maxTimeHorizonYears: 50,
+      rebalanceFrequencyPerYear: 1,
+      fixedReturnsMode: false,
       enableMacroAdjustments: false,
+      selectedMacroScenario: "baseline",
+      monteCarloScenarios: 1000,
+      monteCarloMinScenarios: 1,
+      monteCarloMaxScenarios: 5000,
+      targetCapital: 100000,
+      seed: 123456789
     },
+    allowedRebalanceFrequencies: [0, 1, 2, 4, 12],
     allocation: {
       azionarioGlobale: 30,
       obblGovEU10: 15,
@@ -34,148 +25,108 @@
       obblEUInflLinked: 15,
       obblCorporate: 10,
       materiePrime: 5,
-      oro: 10,
+      oro: 10
     },
-    currencyInfo: {
-      azionarioGlobale: { currency: "USD", hedged: false },
-      obblGovEU10: { currency: "EUR", hedged: true },
-      obblGovEU3: { currency: "EUR", hedged: true },
-      obblEUInflLinked: { currency: "EUR", hedged: true },
-      obblCorporate: { currency: "EUR", hedged: true },
-      materiePrime: { currency: "USD", hedged: false },
-      oro: { currency: "USD", hedged: false },
+    annualizedReturns: {
+      azionarioGlobale: 0.07,
+      obblGovEU10: 0.02,
+      obblGovEU3: 0.015,
+      obblEUInflLinked: 0.02,
+      obblCorporate: 0.03,
+      materiePrime: 0.04,
+      oro: 0.03
     },
-    // High-level macro regimes used to shape the future macro scenario.
-    // Each phase is optional and represents a multi-month period with
-    // gradually changing inflation and policy rates. The structure is
-    // intentionally decoupled from asset returns so it can be wired in
-    // later without affecting the current dashboards.
-    //
-    // The presets below are used by the UI selection (selectedMacroScenario)
-    // to rebuild macroByMonth consistently.
-    macroScenarioPresets: {
-      baseline: {
-        label: "Scenario base",
-        description: "Inflazione moderata con rialzi graduali e successiva disinflazione.",
-        macroPhases: [
-          {
-            name: "Baseline normal",
-            startMonth: 0,
-            duration: 12,
-            inflationFrom: 0.02,
-            inflationTo: 0.0225,
-            rateFrom: 0.02,
-            rateTo: 0.0225,
-            regimeTag: "normal",
-          },
-          {
-            name: "Inflation hike",
-            startMonth: 12,
-            duration: 12,
-            inflationFrom: 0.0225,
-            inflationTo: 0.07,
-            rateFrom: 0.0225,
-            rateTo: 0.05,
-            regimeTag: "inflation_hike",
-          },
-          {
-            name: "Disinflation reset",
-            startMonth: 24,
-            duration: 12,
-            inflationFrom: 0.07,
-            inflationTo: 0.025,
-            rateFrom: 0.05,
-            rateTo: 0.03,
-            regimeTag: "disinflation",
-          },
-        ],
-      },
-      stagflation: {
-        label: "Stagflazione moderata",
-        description: "Inflazione appiccicosa e tassi elevati per un periodo prolungato.",
-        macroPhases: [
-          {
-            name: "Sticky inflation plateau",
-            startMonth: 0,
-            duration: 18,
-            inflationFrom: 0.05,
-            inflationTo: 0.06,
-            rateFrom: 0.04,
-            rateTo: 0.055,
-            regimeTag: "stagflation_plateau",
-          },
-          {
-            name: "Late disinflation",
-            startMonth: 18,
-            duration: 12,
-            inflationFrom: 0.06,
-            inflationTo: 0.03,
-            rateFrom: 0.055,
-            rateTo: 0.035,
-            regimeTag: "late_disinflation",
-          },
-        ],
-      },
-      neutral: {
-        label: "Neutro (flat)",
-        description: "Profilo piatto usato come fallback quando gli scenari macro sono disattivati.",
-        macroPhases: [],
-      },
+    annualizedVolatility: {
+      azionarioGlobale: 0.15,
+      obblGovEU10: 0.05,
+      obblGovEU3: 0.03,
+      obblEUInflLinked: 0.04,
+      obblCorporate: 0.07,
+      materiePrime: 0.20,
+      oro: 0.18
     },
-    // Sensibilità macroeconomiche predefinite per ciascuna asset class.
-    // Le beta descrivono la direzione dell'impatto:
-    // - i governativi a lunga scadenza sono sensibili ai tassi (beta negativa sui policy rate),
-    // - i titoli indicizzati all'inflazione reagiscono positivamente all'inflazione,
-    // - l'azionario globale viene modellato come sensibile al tasso reale (policy rate - inflazione).
-    assetClassSensitivities: {
-      azionarioGlobale: { realRateBeta: -0.6 },
-      obblGovEU10: { policyRateBeta: -1.1 },
-      obblGovEU3: { policyRateBeta: -0.5 },
-      obblEUInflLinked: { inflationBeta: 0.9 },
-      obblCorporate: { policyRateBeta: -0.3, inflationBeta: 0.2 },
-      materiePrime: { inflationBeta: 0.4 },
-      oro: { inflationBeta: 0.6 },
-    },
-    macroTiltConfig: {
-      additiveScale: 0.05,
-      multiplicativeScale: 0.5,
+    fixedMonthlyMultipliers: {
+      azionarioGlobale: 1.0125,
+      obblGovEU10: 1.0035,
+      obblGovEU3: 1.0025,
+      obblEUInflLinked: 1.002,
+      obblCorporate: 1.0045,
+      materiePrime: 1.008,
+      oro: 1.006
     },
     macroDriftConfig: {
       inflationAlpha: 0.5,
       policyRateAlpha: 0.5,
-      realRateAlpha: 0.25,
+      realRateAlpha: 0.25
     },
-    returnFunctions: [
-      {
-        assetClass: "azionarioGlobale",
-        calculateReturn: (mese, options = {}) => 1.01,
+    assetClassSensitivities: {
+      azionarioGlobale: { realRateBeta: -0.6, policyRateBeta: -0.2 },
+      obblGovEU10: { policyRateBeta: -1.1, realRateBeta: -0.4 },
+      obblGovEU3: { policyRateBeta: -0.45, realRateBeta: -0.2 },
+      obblEUInflLinked: { inflationBeta: 0.7, policyRateBeta: -0.35 },
+      obblCorporate: { policyRateBeta: -0.55, realRateBeta: -0.25 },
+      materiePrime: { inflationBeta: 0.8, realRateBeta: -0.15 },
+      oro: { inflationBeta: 0.55, realRateBeta: -0.7 }
+    },
+    macroScenarioPresets: {
+      baseline: {
+        label: "Scenario base",
+        description: "Inflazione moderata con normalizzazione graduale dei tassi.",
+        macroPhases: [
+          { name: "Normalizzazione", startMonth: 0, duration: 36, inflationFrom: 0.025, inflationTo: 0.022, rateFrom: 0.035, rateTo: 0.028, regimeTag: "normal" },
+          { name: "Equilibrio", startMonth: 36, duration: 240, inflationFrom: 0.022, inflationTo: 0.02, rateFrom: 0.028, rateTo: 0.025, regimeTag: "equilibrium" }
+        ]
       },
-      {
-        assetClass: "obblGovEU10",
-        calculateReturn: (mese, options = {}) => 1,
+      stagflation: {
+        label: "Stagflazione moderata",
+        description: "Inflazione persistente e tassi elevati prima della normalizzazione.",
+        macroPhases: [
+          { name: "Inflazione persistente", startMonth: 0, duration: 30, inflationFrom: 0.055, inflationTo: 0.06, rateFrom: 0.045, rateTo: 0.055, regimeTag: "stagflation" },
+          { name: "Rientro lento", startMonth: 30, duration: 60, inflationFrom: 0.06, inflationTo: 0.03, rateFrom: 0.055, rateTo: 0.035, regimeTag: "disinflation" },
+          { name: "Equilibrio", startMonth: 90, duration: 240, inflationFrom: 0.03, inflationTo: 0.022, rateFrom: 0.035, rateTo: 0.028, regimeTag: "equilibrium" }
+        ]
       },
-      {
-        assetClass: "obblGovEU3",
-        calculateReturn: (mese, options = {}) => 1,
-      },
-      {
-        assetClass: "obblEUInflLinked",
-        calculateReturn: (mese, options = {}) => 1,
-      },
-      {
-        assetClass: "obblCorporate",
-        calculateReturn: (mese, options = {}) => 1,
-      },
-      {
-        assetClass: "materiePrime",
-        calculateReturn: (mese, options = {}) => 1,
-      },
-      {
-        assetClass: "oro",
-        calculateReturn: (mese, options = {}) => 1,
-      },
-    ],
+      neutral: {
+        label: "Neutro (flat)",
+        description: "Inflazione e tassi costanti su ipotesi neutra.",
+        macroPhases: [
+          { name: "Neutro", startMonth: 0, duration: 360, inflationFrom: 0.02, inflationTo: 0.02, rateFrom: 0.025, rateTo: 0.025, regimeTag: "neutral" }
+        ]
+      }
+    },
+    futureIntegrations: {
+      historicalMonthlyReturns: null,
+      correlationMatrix: null,
+      optimization: null,
+      decumulation: null,
+      taxation: null
+    }
   };
+
+  // TOBE: inserire qui le serie storiche mensili reali per ciascuna asset class.
+  // Fonte attesa: dataset validato o servizio esterno scelto dal progetto.
+  // Formato atteso: { assetClass: [{ date: "YYYY-MM", multiplier: 1.0123 }] }.
+  marketData.futureIntegrations.historicalMonthlyReturns = null;
+
+  // TOBE: inserire una matrice di correlazione validata tra le asset class.
+  // Fonte attesa: stime storiche o ipotesi approvate.
+  // Formato atteso: matrice quadrata coerente con l’ordine esplicito delle asset class.
+  marketData.futureIntegrations.correlationMatrix = null;
+
+  // TOBE: definire l’obiettivo di ottimizzazione e i vincoli ammessi.
+  // Fonte attesa: decisione di prodotto su rendimento, rischio, pesi minimi e pesi massimi.
+  // Formato atteso: { objective, constraints, boundsByAsset }.
+  marketData.futureIntegrations.optimization = null;
+
+  // TOBE: definire le regole della fase di decumulo.
+  // Fonte attesa: decisione di prodotto su prelievo iniziale, indicizzazione, durata e gestione dei fallimenti.
+  // Formato atteso: { initialWithdrawal, inflationLinked, durationYears, withdrawalFrequency }.
+  marketData.futureIntegrations.decumulation = null;
+
+  // TOBE: definire il modello fiscale applicabile alle diverse asset class e al regime dell’utente.
+  // Fonte attesa: specifiche fiscali validate.
+  // Formato atteso: { assetClass: { capitalGainRate, incomeRate, notes } }.
+  marketData.futureIntegrations.taxation = null;
 
   global.marketData = marketData;
 })(window);

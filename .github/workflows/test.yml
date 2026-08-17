@@ -1,0 +1,24 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  simulation-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          find src/assets/js -type f -name '*.js' ! -name '*.min.js' -print0 | xargs -0 -n1 node --check
+          node --check tests/run-simulation-tests.mjs
+
+      - name: Run simulation tests
+        run: node tests/run-simulation-tests.mjs

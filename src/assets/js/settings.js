@@ -1,112 +1,52 @@
-(function() {
-  function getSeedInput() {
-    return document.getElementById('simulationSeed');
+(function (global) {
+  const STORAGE_KEY = "wealthPathSimulator.settings.v1";
+  function defaultSettings() {
+    const md = global.marketData;
+    return global.WealthPathValidation.sanitizeSettings({ ...md.defaults, allocation: { ...md.allocation } });
   }
-
-  function getSeedStatus() {
-    return document.getElementById('seedStatus');
+  function loadSettings() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return defaultSettings();
+      const parsed = JSON.parse(raw);
+      const sanitized = global.WealthPathValidation.sanitizeSettings(parsed);
+      const validation = global.WealthPathValidation.validateSettings(sanitized);
+      return validation.valid ? sanitized : defaultSettings();
+    } catch (error) { return defaultSettings(); }
   }
-
-  function getMacroToggle() {
-    return document.getElementById('macroScenarioToggle');
+  function saveSettings(settings) {
+    const sanitized = global.WealthPathValidation.sanitizeSettings(settings);
+    const validation = global.WealthPathValidation.validateSettings(sanitized);
+    if (!validation.valid) return { success: false, errors: validation.errors };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
+    return { success: true, settings: sanitized };
   }
-
-  function getMacroStatus() {
-    return document.getElementById('macroStatus');
+  function exportSettings(settings) {
+    return JSON.stringify(global.WealthPathValidation.sanitizeSettings(settings), null, 2);
   }
-
-  function updateSeedInputValue() {
-    const input = getSeedInput();
-    if (!input || !window.randomSeedManager) return;
-    input.value = window.randomSeedManager.getSeed();
-  }
-
-  function updateStatus(message) {
-    const status = getSeedStatus();
-    if (status) {
-      status.textContent = message;
+  function importSettings(jsonText) {
+    try {
+      const parsed = JSON.parse(jsonText);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return { success: false, errors: ["La configurazione deve essere un oggetto JSON."] };
+      if (Number(parsed.schemaVersion) !== global.marketData.schemaVersion) return { success: false, errors: ["Versione della configurazione non supportata."] };
+      const rawValidation = global.WealthPathValidation.validateSettings(parsed);
+      if (!rawValidation.valid) return { success: false, errors: rawValidation.errors };
+      const sanitized = global.WealthPathValidation.sanitizeSettings(parsed);
+      const validation = global.WealthPathValidation.validateSettings(sanitized);
+      if (!validation.valid) return { success: false, errors: validation.errors };
+      saveSettings(sanitized);
+      return { success: true, settings: sanitized };
+    } catch (error) {
+      return { success: false, errors: ["Il file JSON non è valido."] };
     }
   }
-
-  function updateMacroToggleState() {
-    const toggle = getMacroToggle();
-    if (!toggle) return;
-    const isEnabled = typeof enableMacroScenario !== 'undefined' ? Boolean(enableMacroScenario) : false;
-    toggle.checked = isEnabled;
-    updateMacroStatus(isEnabled);
+  function downloadConfig(settings) {
+    const blob = new Blob([exportSettings(settings)], { type: "application/json" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "wealthpath-simulator-config.json";
+    link.click();
+    URL.revokeObjectURL(link.href);
   }
-
-  function updateMacroStatus(isEnabled) {
-    const status = getMacroStatus();
-    if (status) {
-      const selectedLabel = macroScenarioPresets?.[selectedMacroScenario]?.label || selectedMacroScenario || 'scenario';
-      status.textContent = isEnabled
-        ? `Gli scenari macro sono attivi (${selectedLabel}) e influenzano le simulazioni.`
-        : 'Gli scenari macro sono disattivati.';
-    }
-  }
-
-  function applySeed(seedValue) {
-    if (!window.randomSeedManager) return;
-    const normalizedSeed = window.randomSeedManager.setSeed(seedValue);
-    updateSeedInputValue();
-    updateStatus(`Seed applicato: ${normalizedSeed}`);
-    if (typeof randomizePerformance === 'function') {
-      randomizePerformance();
-    }
-  }
-
-  function setupEventHandlers() {
-    const applyButton = document.getElementById('applySeedButton');
-    const generateButton = document.getElementById('generateSeedButton');
-    const modal = document.getElementById('settingsModal');
-    const macroToggle = getMacroToggle();
-
-    if (applyButton) {
-      applyButton.addEventListener('click', () => {
-        const input = getSeedInput();
-        applySeed(input?.value ?? '');
-      });
-    }
-
-    if (generateButton) {
-      generateButton.addEventListener('click', () => {
-        if (!window.randomSeedManager) return;
-        const newSeed = window.randomSeedManager.regenerateSeed();
-        updateSeedInputValue();
-        updateStatus(`Nuovo seed generato: ${newSeed}`);
-        if (typeof randomizePerformance === 'function') {
-          randomizePerformance();
-        }
-      });
-    }
-
-    if (macroToggle) {
-      macroToggle.addEventListener('change', () => {
-        if (typeof toggleMacroScenario === 'function') {
-          toggleMacroScenario(macroToggle.checked);
-        }
-        updateMacroStatus(macroToggle.checked);
-      });
-    }
-
-    if (modal) {
-      const handleShow = () => {
-        updateSeedInputValue();
-        updateStatus('');
-        updateMacroToggleState();
-      };
-
-      if (window.jQuery && typeof window.jQuery(modal).on === 'function') {
-        window.jQuery(modal).on('show.bs.modal', handleShow);
-      } else {
-        modal.addEventListener('show.bs.modal', handleShow);
-      }
-    }
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    updateSeedInputValue();
-    setupEventHandlers();
-  });
-})();
+  global.WealthPathSettings = { STORAGE_KEY, defaultSettings, loadSettings, saveSettings, exportSettings, importSettings, downloadConfig };
+})(window);

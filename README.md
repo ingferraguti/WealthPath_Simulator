@@ -1,64 +1,55 @@
-# WealthPath_Simulator
+# WealthPath Simulator
 
+Simulatore statico, eseguito interamente nel browser, per analizzare l'evoluzione di un portafoglio multi-asset con versamenti periodici.
+
+## Funzionalità disponibili
+
+- simulazione mensile con rendimenti fissi o Geometric Brownian Motion (GBM);
+- seed riproducibile, contribuzione mensile e ribilanciamento configurabile;
+- asset allocation interattiva con ridistribuzione automatica al 100%;
+- scenari macroeconomici opzionali e valori reali corretti per l'inflazione;
+- Monte Carlo da 1 a 5.000 scenari, bande percentili, istogramma e probabilità di raggiungimento dell'obiettivo;
+- metriche TWRR, MWRR, volatilità, massimo drawdown e frequenza dei mesi positivi;
+- tabelle mensili e annuali corrette per i flussi di cassa;
+- persistenza locale, import/export della configurazione ed esportazione PDF;
+- validazione e sanificazione di importi, orizzonte, seed, scenari e allocazione.
+
+## Avvio locale
+
+Non è richiesto un processo di build. Servire la cartella `src` con un server HTTP, ad esempio:
+
+```bash
+python -m http.server 8765 --directory src
 ```
-██╗    ██╗███████╗ █████╗ ██╗     ████████╗██╗  ██╗
-██║    ██║██╔════╝██╔══██╗██║     ╚══██╔══╝██║  ██║
-██║ █╗ ██║█████╗  ███████║██║        ██║   ███████║
-██║███╗██║██╔══╝  ██╔══██║██║        ██║   ██╔══██║
-╚███╔███╔╝███████╗██║  ██║███████╗   ██║   ██║  ██║
- ╚══╝╚══╝ ╚══════╝╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝
 
-          WealthPath Simulator
-   Analysis and simulations for 
-        informed financial decisions
+Aprire quindi `http://127.0.0.1:8765/`.
 
-Analisi e simulazioni per decisioni finanziarie consapevoli
-``` 
+## Test
 
+La suite automatica richiede Node.js 20 o successivo:
 
----
+```bash
+node tests/run-simulation-tests.mjs
+```
 
-WealthPath Simulator è una piattaforma avanzata progettata per simulare l’evoluzione di un portafoglio di investimento nel tempo.
-Utilizzando modelli Monte Carlo, rendimenti storici, contributi periodici, variazioni mensili e ribilanciamenti intelligenti, offre all’investitore un quadro chiaro e visuale dell’impatto delle proprie scelte finanziarie.
----
+Per eseguire la stessa suite nel browser, aprire l'applicazione aggiungendo `?debug=1` all'URL. La pipeline GitHub Actions controlla inoltre la sintassi di tutti i file JavaScript a ogni push e pull request.
 
-### 🚀 Caratteristiche principali
+## Configurazione
 
-- Simulazioni Monte Carlo con N scenari configurabili
+- ipotesi di mercato, limiti e scenari: `src/assets/js/config/marketData.js`;
+- testi dell'interfaccia: `src/assets/js/config/labels.js`;
+- logica di validazione: `src/assets/js/validation.js`.
 
-- Modelli di rendimento azionario basati su Geometric Brownian Motion
+## Sviluppi previsti, non ancora implementati
 
-- Analisi storica dei rendimenti di varie asset class
+- serie storiche mensili validate;
+- matrice di correlazione tra asset class;
+- ottimizzazione del portafoglio con vincoli;
+- fase di decumulo;
+- modello fiscale.
 
-- Calcolo PAC, contributi periodici, accumulo e interesse composto
+Questi elementi sono dichiarati in `marketData.futureIntegrations` e richiedono dati o specifiche di prodotto validate prima dell'implementazione.
 
-- Ribilanciamento automatico e personalizzabile
+## Nota
 
-- Dashboard interattiva con grafici e tabelle
-
-- Doughnut chart delle allocazioni senza eventi click
-
-- Esportazione PDF
-
-- Ottimizzazione del portafoglio (in sviluppo)
-
-
-### 🧪 Modello Monte Carlo (GBM)
-
-WealthPath Simulator usa un modello di Geometric Brownian Motion per generare scenari realistici dei rendimenti azionari:
-
-S(t) = S(0) * exp( (μ − 0.5σ²)t + σ * Wt )
-
-
-### ⚙️ Settings
-
-- **Parametri di mercato**: personalizza rendimenti simulati, asset allocation iniziale e valute in `src/assets/js/config/marketData.js` (sezioni `priceRatios`, `defaults`, `allocation`, `currencyInfo` e `returnFunctions`).
-- **Etichette UI**: aggiorna testi e descrizioni delle asset class modificando `src/assets/js/config/labels.js` o usando l'helper `getLabel()` esposto nello stesso file.
-- **Ordine di inclusione**: assicurati che i file nella cartella `config` vengano caricati prima degli altri script front-end (come avviene in `src/index.html`) così che i dati siano disponibili alla logica di simulazione.
-
-
-### 🤝 Contributi
-
-Le pull-request sono benvenute.
-Suggerimenti, fix e nuove funzionalità sono apprezzati.
-
+I risultati dipendono dalle ipotesi configurate e non costituiscono consulenza finanziaria.

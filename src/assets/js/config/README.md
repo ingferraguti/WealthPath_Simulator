@@ -1,33 +1,24 @@
-# Configurazioni front-end
+# Configurazione front-end
 
-`marketData.js` raccoglie in un unico oggetto le costanti di mercato utilizzate dai vari script front-end. Il file espone `window.marketData` con i campi descritti di seguito, così da poter aggiornare i parametri senza dover modificare più file JS.
+`marketData.js` espone `window.marketData` e raccoglie le ipotesi usate dal simulatore. `labels.js` espone `window.labels` e `window.getLabel(path)` per le stringhe dell'interfaccia.
 
-`labels.js` centralizza le etichette UI e le descrizioni delle asset class. Espone `window.labels` e l'helper `window.getLabel(path)` per recuperare le stringhe a partire da una chiave (es. `getLabel('ui.initialInvestment')`).
+## Campi di `marketData`
 
-## Struttura dell'oggetto `marketData`
+- `schemaVersion`: versione del formato persistito.
+- `assetClasses`: ordine canonico delle asset class. Lo stesso ordine è usato dalla matrice di correlazione.
+- `defaults`: importi, orizzonte, ribilanciamento, modalità, scenario macro, Monte Carlo, obiettivo e seed iniziali.
+- `allowedRebalanceFrequencies`: frequenze annue ammesse.
+- `allocation`: pesi percentuali predefiniti; devono totalizzare 100.
+- `annualizedReturns`: rendimenti annui attesi usati nel drift GBM.
+- `annualizedVolatility`: volatilità annue usate nel GBM e nel rischio ex ante.
+- `correlationMatrix`: matrice simmetrica, con diagonale unitaria e definita positiva. Determina sia gli shock GBM correlati sia la volatilità ex ante del portafoglio.
+- `fixedMonthlyMultipliers`: moltiplicatori mensili della modalità a rendimenti fissi.
+- `macroDriftConfig`, `assetClassSensitivities` e `macroScenarioPresets`: configurazione degli aggiustamenti macroeconomici.
+- `futureIntegrations`: punti di estensione non ancora implementati per serie storiche, ottimizzazione, decumulo e fiscalità.
 
-- `priceRatios` (Array<number>): sequenza di moltiplicatori mensili (dimensione adimensionale) applicati all'azionario globale nel mock di simulazione. Ogni valore rappresenta un rendimento relativo (es. `1.02` = +2%).
-- `defaults` (Object): valori di partenza per la simulazione.
-  - `initialInvestment` (number): capitale iniziale in euro.
-  - `monthlyContribution` (number): contributo mensile in euro.
-  - `timeHorizonYears` (number): orizzonte temporale espresso in anni.
-- `allocation` (Object): ripartizione percentuale iniziale delle asset class. Le percentuali devono sommare a 100.
-- `currencyInfo` (Object): metadati valutari per ogni asset class.
-  - `currency` (string): codice valuta (es. `EUR`, `USD`).
-  - `hedged` (boolean): `true` se la posizione è coperta dal rischio cambio.
-- `macroPhases` (Array<Object>): fasi macroeconomiche opzionali che descrivono l'evoluzione attesa di inflazione e tassi di policy.
-  - `name` (string): etichetta descrittiva della fase.
-  - `startMonth` (number): mese di inizio (0 = primo mese della simulazione).
-  - `duration` (number): durata in mesi.
-  - `inflationFrom` / `inflationTo` (number): inflazione annualizzata ai confini della fase.
-  - `rateFrom` / `rateTo` (number): tassi di policy annualizzati ai confini della fase.
-  - `regimeTag` (string): tag rapido del regime (es. `normal`, `inflation_hike`).
-- `returnFunctions` (Array<Object>): lista di configurazioni di rendimento per asset class.
-  - `assetClass` (string): chiave dell'asset (deve corrispondere a `allocation`).
-  - `calculateReturn` (function): funzione che restituisce il moltiplicatore mensile (es. `1.01` per +1%). La funzione riceve l'indice di mese.
+## Aggiornamento sicuro
 
-## Modalità d'uso
-
-1. Includere `assets/js/config/labels.js` e `assets/js/config/marketData.js` **prima** degli altri script che leggono i dati di mercato (vedi `src/index.html`).
-2. Modificare i valori in `labels.js` per aggiornare le etichette UI o le descrizioni delle asset class senza toccare la logica applicativa.
-3. Modificare i valori in `marketData.js` per aggiornare pesi percentuali o sequenze di rendimento senza toccare la logica applicativa.
+1. Conservare l'ordine di `assetClasses` coerente con righe e colonne di `correlationMatrix`.
+2. Verificare che allocazione e diagonale della matrice siano pari rispettivamente a 100 e 1.
+3. Eseguire `node tests/run-simulation-tests.mjs`: i test ricostruiscono la matrice tramite Cholesky e coprono formule, seed, scenari macro, cache e orizzonte massimo.
+4. Incrementare `schemaVersion` quando cambia il formato persistito.

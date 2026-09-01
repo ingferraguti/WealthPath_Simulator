@@ -8,8 +8,8 @@ Simulatore statico, eseguito interamente nel browser, per analizzare l'evoluzion
 - seed riproducibile, contribuzione mensile e ribilanciamento configurabile;
 - asset allocation interattiva con ridistribuzione automatica al 100%;
 - scenari macroeconomici opzionali e valori reali corretti per l'inflazione;
-- Monte Carlo da 1 a 5.000 scenari, bande percentili, istogramma e probabilità di raggiungimento dell'obiettivo;
-- metriche TWRR, MWRR, volatilità, massimo drawdown e frequenza dei mesi positivi;
+- Monte Carlo da 1 a 5.000 scenari con shock correlati, cache LRU, bande percentili, istogramma e probabilità di raggiungimento dell'obiettivo;
+- metriche TWRR, XIRR datato, volatilità realizzata, rischio ex ante basato sulle correlazioni, massimo drawdown e frequenza dei mesi positivi;
 - tabelle mensili e annuali corrette per i flussi di cassa;
 - persistenza locale, import/export della configurazione ed esportazione PDF;
 - validazione e sanificazione di importi, orizzonte, seed, scenari e allocazione.

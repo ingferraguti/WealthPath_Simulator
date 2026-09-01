@@ -14,24 +14,25 @@
   <nav class="navbar navbar-light bg-white shadow mb-4">
     <div class="container-fluid">
       <span class="navbar-brand mb-0 h1">WealthPath Simulator</span>
-      <span class="text-muted d-none d-md-inline">Analysis and simulations for informed financial decisions</span>
+      <span class="text-muted d-none d-md-inline">Analisi e simulazioni per decisioni finanziarie consapevoli</span>
       <button id="downloadPdfButton" class="btn btn-primary" type="button"><i class="fas fa-file-pdf mr-1"></i> Esporta PDF</button>
     </div>
   </nav>
 
   <main class="container-fluid" id="contenutopagina">
     <div id="statusMessage" class="alert d-none" role="status"></div>
+
     <section class="row">
       <div class="col-xl-3 col-lg-4 mb-4">
         <div class="card shadow h-100">
-          <div class="card-header"><h2 class="h6 m-0 font-weight-bold text-primary">Parametri</h2></div>
+          <div class="card-header"><h2 class="h6 m-0 font-weight-bold text-primary">Parametri del portafoglio</h2></div>
           <div class="card-body">
-            <div class="form-group"><label for="initialInvestment">Investimento iniziale</label><input id="initialInvestment" class="form-control" type="number" min="0" step="100"></div>
-            <div class="form-group"><label for="monthlyContribution">Contributo mensile</label><input id="monthlyContribution" class="form-control" type="number" min="0" step="50"></div>
-            <div class="form-group"><label for="timeHorizonYears">Orizzonte temporale (anni)</label><input id="timeHorizonYears" class="form-control" type="number" min="1" max="50" step="1"></div>
+            <div class="form-group"><label for="initialInvestment">Investimento iniziale</label><input id="initialInvestment" class="form-control" type="number" inputmode="decimal" min="0" step="100" required></div>
+            <div class="form-group"><label for="monthlyContribution">Contributo mensile</label><input id="monthlyContribution" class="form-control" type="number" inputmode="decimal" min="0" step="50" required></div>
+            <div class="form-group"><label for="timeHorizonYears">Orizzonte temporale (anni)</label><input id="timeHorizonYears" class="form-control" type="number" inputmode="numeric" min="1" max="50" step="1" required></div>
             <div class="form-group"><label for="rebalanceFrequencyPerYear">Ribilanciamento</label><select id="rebalanceFrequencyPerYear" class="form-control"><option value="0">Mai</option><option value="1">Annuale</option><option value="2">Semestrale</option><option value="4">Trimestrale</option><option value="12">Mensile</option></select></div>
             <div class="custom-control custom-switch mb-3"><input id="fixedReturnsMode" class="custom-control-input" type="checkbox"><label class="custom-control-label" for="fixedReturnsMode">Usa rendimenti fissi</label></div>
-            <div class="form-group"><label for="simulationSeed">Seed</label><div class="input-group"><input id="simulationSeed" class="form-control" type="number" min="0"><div class="input-group-append"><button id="generateSeedButton" class="btn btn-outline-secondary" type="button">Nuovo</button><button id="applySeedButton" class="btn btn-outline-primary" type="button">Applica</button></div></div></div>
+            <div class="form-group"><label for="simulationSeed">Seed</label><div class="input-group"><input id="simulationSeed" class="form-control" type="number" inputmode="numeric" min="0" max="4294967295" step="1" required><div class="input-group-append"><button id="generateSeedButton" class="btn btn-outline-secondary" type="button">Nuovo</button><button id="applySeedButton" class="btn btn-outline-primary" type="button">Applica</button></div></div></div>
             <hr>
             <div class="form-group"><label for="macroScenarioSelect">Scenario macro</label><select id="macroScenarioSelect" class="form-control"><option value="baseline">Scenario base</option><option value="stagflation">Stagflazione moderata</option><option value="neutral">Neutro (flat)</option></select></div>
             <div class="custom-control custom-switch mb-3"><input id="enableMacroAdjustments" class="custom-control-input" type="checkbox"><label class="custom-control-label" for="enableMacroAdjustments">Applica scenario macro</label></div>
@@ -43,27 +44,46 @@
           </div>
         </div>
       </div>
+
       <div class="col-xl-9 col-lg-8 mb-4">
-        <div class="card shadow mb-4">
+        <div class="card shadow h-100">
           <div class="card-header"><h2 class="h6 m-0 font-weight-bold text-primary">Asset allocation</h2></div>
           <div class="card-body"><div class="row"><div class="col-lg-5"><div id="allocationControls"></div></div><div class="col-lg-7"><div class="chart-area" style="height:330px"><canvas id="allocationChart"></canvas></div></div></div></div>
         </div>
-        <div class="row">
-          <div class="col-md-3 mb-4"><div class="card border-left-primary shadow h-100 py-2"><div class="card-body"><div class="small text-primary font-weight-bold">Valore finale nominale</div><div id="kpiFinalValue" class="h5 mb-0 font-weight-bold text-gray-800"></div></div></div></div>
-          <div class="col-md-3 mb-4"><div class="card border-left-success shadow h-100 py-2"><div class="card-body"><div class="small text-success font-weight-bold">Capitale versato</div><div id="kpiContributions" class="h5 mb-0 font-weight-bold text-gray-800"></div></div></div></div>
-          <div class="col-md-3 mb-4"><div class="card border-left-info shadow h-100 py-2"><div class="card-body"><div class="small text-info font-weight-bold">Performance totale</div><div id="kpiPerformance" class="h5 mb-0 font-weight-bold text-gray-800"></div><div id="kpiPerformancePct" class="small text-muted"></div></div></div></div>
-          <div class="col-md-3 mb-4"><div class="card border-left-warning shadow h-100 py-2"><div class="card-body"><div class="small text-warning font-weight-bold">Valore finale reale</div><div id="kpiRealFinalValue" class="h6 mb-0 font-weight-bold text-gray-800"></div></div></div></div>
-        </div>
-        <div class="card shadow mb-4"><div class="card-header"><h2 class="h6 m-0 font-weight-bold text-primary">Andamento del portafoglio</h2></div><div class="card-body"><div class="mb-2 small text-muted">Modalità: <span id="simulationModeLabel"></span> · Scenario: <span id="macroSelectedLabel"></span> · Seed: <span id="seedUsedLabel"></span></div><div class="chart-area" style="height:360px"><canvas id="portfolioChart"></canvas></div></div></div>
       </div>
     </section>
 
-    <section class="card shadow mb-4"><div class="card-header"><h2 class="h6 m-0 font-weight-bold text-primary">Metriche di rischio e rendimento</h2></div><div class="card-body"><div class="row text-center"><div class="col-md-2 mb-3"><div class="small text-muted">Rendimento TWRR annualizzato</div><div id="riskAnnualizedReturn" class="font-weight-bold"></div></div><div class="col-md-2 mb-3"><div class="small text-muted">Rendimento MWRR annualizzato</div><div id="riskMoneyWeightedReturn" class="font-weight-bold"></div></div><div class="col-md-2 mb-3"><div class="small text-muted">Volatilità annualizzata</div><div id="riskAnnualizedVolatility" class="font-weight-bold"></div></div><div class="col-md-2 mb-3"><div class="small text-muted">Massimo drawdown</div><div id="riskMaxDrawdown" class="font-weight-bold"></div></div><div class="col-md-2 mb-3"><div class="small text-muted">Peggior mese</div><div id="riskWorstMonth" class="font-weight-bold"></div></div><div class="col-md-2 mb-3"><div class="small text-muted">Mesi positivi</div><div id="riskPositiveMonths" class="font-weight-bold"></div></div></div></div></section>
+    <ul class="nav nav-tabs mb-4" id="analysisTabs" role="tablist">
+      <li class="nav-item"><a id="singleSimulationTab" class="nav-link active" data-toggle="tab" href="#singleSimulationPanel" role="tab" aria-controls="singleSimulationPanel" aria-selected="true"><i class="fas fa-chart-line mr-1"></i> Simulazione singola</a></li>
+      <li class="nav-item"><a id="monteCarloTab" class="nav-link" data-toggle="tab" href="#monteCarloPanel" role="tab" aria-controls="monteCarloPanel" aria-selected="false"><i class="fas fa-random mr-1"></i> Monte Carlo</a></li>
+    </ul>
 
-    <section class="card shadow mb-4"><div class="card-header"><h2 class="h6 m-0 font-weight-bold text-primary">Monte Carlo</h2></div><div class="card-body"><div class="row align-items-end"><div class="col-md-3"><div class="form-group"><label for="monteCarloScenarios">Numero scenari</label><input id="monteCarloScenarios" class="form-control" type="number" min="1" max="5000" step="100"></div></div><div class="col-md-3"><div class="form-group"><label for="targetCapital">Capitale obiettivo</label><input id="targetCapital" class="form-control" type="number" min="0" step="1000"></div></div><div class="col-md-3"><button id="runMonteCarloButton" class="btn btn-primary mb-3" type="button">Esegui Monte Carlo</button></div><div class="col-md-3"><p id="monteCarloStatus" class="text-muted mb-3">Monte Carlo non ancora eseguito.</p></div></div><div id="monteCarloKpis" class="row"></div><div class="row"><div class="col-lg-8 mb-4"><div class="chart-area" style="height:360px"><canvas id="monteCarloChart"></canvas></div></div><div class="col-lg-4 mb-4"><div class="chart-area" style="height:360px"><canvas id="monteCarloHistogram"></canvas></div></div></div></div></section>
+    <div class="tab-content" id="analysisTabsContent">
+      <section id="singleSimulationPanel" class="tab-pane fade show active" role="tabpanel" aria-labelledby="singleSimulationTab">
+        <div class="row">
+          <div class="col-md-6 col-xl-3 mb-4"><div class="card border-left-primary shadow h-100 py-2"><div class="card-body"><div class="small text-primary font-weight-bold">Valore finale nominale</div><div id="kpiFinalValue" class="h5 mb-0 font-weight-bold text-gray-800"></div></div></div></div>
+          <div class="col-md-6 col-xl-3 mb-4"><div class="card border-left-success shadow h-100 py-2"><div class="card-body"><div class="small text-success font-weight-bold">Capitale versato</div><div id="kpiContributions" class="h5 mb-0 font-weight-bold text-gray-800"></div></div></div></div>
+          <div class="col-md-6 col-xl-3 mb-4"><div class="card border-left-info shadow h-100 py-2"><div class="card-body"><div class="small text-info font-weight-bold">Performance totale</div><div id="kpiPerformance" class="h5 mb-0 font-weight-bold text-gray-800"></div><div id="kpiPerformancePct" class="small text-muted"></div></div></div></div>
+          <div class="col-md-6 col-xl-3 mb-4"><div class="card border-left-warning shadow h-100 py-2"><div class="card-body"><div class="small text-warning font-weight-bold">Valore finale reale</div><div id="kpiRealFinalValue" class="h6 mb-0 font-weight-bold text-gray-800"></div></div></div></div>
+        </div>
 
-    <section class="row"><div class="col-lg-6 mb-4"><div class="card shadow"><div class="card-header"><h2 class="h6 m-0 font-weight-bold text-primary">Tabella mensile</h2></div><div class="card-body table-responsive"><table id="monthlyTable" class="table table-sm table-striped"></table></div></div></div><div class="col-lg-6 mb-4"><div class="card shadow" id="tablecontaineranno"><div class="card-header"><h2 class="h6 m-0 font-weight-bold text-primary">Tabella annuale</h2></div><div class="card-body table-responsive"><table id="annualTable" class="table table-sm table-striped"></table></div></div></div></section>
+        <section class="card shadow mb-4"><div class="card-header"><h2 class="h6 m-0 font-weight-bold text-primary">Andamento del portafoglio</h2></div><div class="card-body"><div class="mb-2 small text-muted">Modalità: <span id="simulationModeLabel"></span> · Scenario: <span id="macroSelectedLabel"></span> · Seed: <span id="seedUsedLabel"></span></div><div class="chart-area" style="height:420px"><canvas id="portfolioChart"></canvas></div></div></section>
+
+        <section class="card shadow mb-4"><div class="card-header"><h2 class="h6 m-0 font-weight-bold text-primary">Metriche di rischio e rendimento</h2></div><div class="card-body"><div class="row text-center"><div class="col-md-3 col-lg-2 mb-3"><div class="small text-muted">Rendimento TWRR annualizzato</div><div id="riskAnnualizedReturn" class="font-weight-bold"></div></div><div class="col-md-3 col-lg-2 mb-3"><div class="small text-muted">XIRR annualizzato</div><div id="riskMoneyWeightedReturn" class="font-weight-bold"></div></div><div class="col-md-3 col-lg-2 mb-3"><div class="small text-muted">Volatilità realizzata annualizzata</div><div id="riskAnnualizedVolatility" class="font-weight-bold"></div></div><div class="col-md-3 col-lg-2 mb-3"><div class="small text-muted">Rischio ex ante correlato</div><div id="riskCorrelationVolatility" class="font-weight-bold"></div></div><div class="col-md-3 col-lg-2 mb-3"><div class="small text-muted">Beneficio diversificazione</div><div id="riskDiversificationBenefit" class="font-weight-bold"></div></div><div class="col-md-3 col-lg-2 mb-3"><div class="small text-muted">Massimo drawdown</div><div id="riskMaxDrawdown" class="font-weight-bold"></div></div><div class="col-md-3 col-lg-2 mb-3"><div class="small text-muted">Peggior mese</div><div id="riskWorstMonth" class="font-weight-bold"></div></div><div class="col-md-3 col-lg-2 mb-3"><div class="small text-muted">Mesi positivi</div><div id="riskPositiveMonths" class="font-weight-bold"></div></div></div></div></section>
+
+        <section class="card shadow mb-4"><div class="card-header"><h2 class="h6 m-0 font-weight-bold text-primary">Tabella mensile</h2></div><div class="card-body table-responsive"><table id="monthlyTable" class="table table-sm table-striped"></table></div></section>
+        <section class="card shadow mb-4" id="tablecontaineranno"><div class="card-header"><h2 class="h6 m-0 font-weight-bold text-primary">Tabella annuale</h2></div><div class="card-body table-responsive"><table id="annualTable" class="table table-sm table-striped"></table></div></section>
+      </section>
+
+      <section id="monteCarloPanel" class="tab-pane fade" role="tabpanel" aria-labelledby="monteCarloTab">
+        <section class="card shadow mb-4"><div class="card-header"><h2 class="h6 m-0 font-weight-bold text-primary">Impostazioni Monte Carlo</h2></div><div class="card-body"><div class="row align-items-end"><div class="col-md-4"><div class="form-group"><label for="monteCarloScenarios">Numero scenari</label><input id="monteCarloScenarios" class="form-control" type="number" inputmode="numeric" min="1" max="5000" step="1" required></div></div><div class="col-md-4"><div class="form-group"><label for="targetCapital">Capitale obiettivo</label><input id="targetCapital" class="form-control" type="number" inputmode="decimal" min="0" step="1000" required></div></div><div class="col-md-4"><button id="runMonteCarloButton" class="btn btn-primary mb-3" type="button"><i class="fas fa-play mr-1"></i> Esegui Monte Carlo</button><p id="monteCarloStatus" class="text-muted mb-3" aria-live="polite">Monte Carlo non ancora eseguito.</p></div></div></div></section>
+        <div id="monteCarloKpis" class="row"></div>
+        <section class="card shadow mb-4"><div class="card-header"><h2 class="h6 m-0 font-weight-bold text-primary">Bande percentile</h2></div><div class="card-body"><div class="chart-area" style="height:420px"><canvas id="monteCarloChart"></canvas></div></div></section>
+        <section class="card shadow mb-4"><div class="card-header"><h2 class="h6 m-0 font-weight-bold text-primary">Distribuzione dei valori finali</h2></div><div class="card-body"><div class="chart-area" style="height:360px"><canvas id="monteCarloHistogram"></canvas></div></div></section>
+      </section>
+    </div>
   </main>
+
   <footer class="bg-white py-4"><div class="container text-center text-muted small">WealthPath Simulator · risultati basati su ipotesi, non consulenza finanziaria.</div></footer>
   <script src="assets/js/random-seed.js"></script>
   <script src="assets/js/config/labels.js"></script>

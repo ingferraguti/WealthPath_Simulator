@@ -4,6 +4,7 @@
   let currentSimulation = null;
   let currentStatistics = null;
   let currentMonteCarlo = null;
+  let pendingAllocationRender = null;
   function pct(value) { return `${((Number(value) || 0) * 100).toFixed(2)}%`; }
   function money(value) { return euro.format(Number(value) || 0); }
   function byId(id) { return document.getElementById(id); }
@@ -18,7 +19,7 @@
     box.innerHTML = "";
     global.marketData.assetClasses.forEach((asset) => {
       const group = document.createElement("div"); group.className = "form-group";
-      group.innerHTML = `<label class="font-weight-bold" for="alloc-${asset}">${global.labels.assets[asset]} <span id="alloc-label-${asset}">${currentSettings.allocation[asset]}%</span></label><input id="alloc-${asset}" class="custom-range" type="range" min="0" max="100" step="0.01" value="${currentSettings.allocation[asset]}"><input id="alloc-number-${asset}" class="form-control form-control-sm mt-1" type="number" min="0" max="100" step="0.01" value="${currentSettings.allocation[asset]}">`;
+      group.innerHTML = `<label class="font-weight-bold" for="alloc-${asset}">${global.labels.assets[asset]} <span id="alloc-label-${asset}">${currentSettings.allocation[asset]}%</span></label><input id="alloc-${asset}" class="custom-range" type="range" min="0" max="100" step="0.01" value="${currentSettings.allocation[asset]}"><input id="alloc-number-${asset}" class="form-control form-control-sm mt-1" type="number" inputmode="decimal" min="0" max="100" step="0.01" value="${currentSettings.allocation[asset]}" required>`;
       box.appendChild(group);
       [group.querySelector(`#alloc-${asset}`), group.querySelector(`#alloc-number-${asset}`)].forEach((input) => input.addEventListener("input", (event) => updateAllocation(asset, Number(event.target.value))));
     });
@@ -27,7 +28,12 @@
     currentSettings.allocation = global.WealthPathValidation.redistributeAllocation(currentSettings.allocation, changedAsset, value);
     clearMonteCarloState();
     syncFormValues();
-    renderDashboard({ rerunMonteCarlo: false, preserveControls: true });
+    if (pendingAllocationRender !== null) return;
+    const schedule = typeof global.requestAnimationFrame === "function" ? global.requestAnimationFrame.bind(global) : (callback) => global.setTimeout(callback, 0);
+    pendingAllocationRender = schedule(() => {
+      pendingAllocationRender = null;
+      renderDashboard({ rerunMonteCarlo: false, preserveControls: true });
+    });
   }
   function syncFormValues() {
     if (!currentSettings) return;
@@ -59,10 +65,12 @@
     byId("kpiRealFinalValue").textContent = currentSimulation.finalRealValue === null ? "Scenario macro disattivato" : money(currentSimulation.finalRealValue);
     byId("riskAnnualizedReturn").textContent = pct(currentStatistics.annualizedReturn);
     byId("riskAnnualizedVolatility").textContent = pct(currentStatistics.annualizedVolatility);
+    byId("riskCorrelationVolatility").textContent = pct(currentStatistics.correlationAdjustedVolatility);
+    byId("riskDiversificationBenefit").textContent = pct(currentStatistics.diversificationBenefit);
     byId("riskMaxDrawdown").textContent = `${pct(currentStatistics.maxDrawdown)} (mese ${currentStatistics.maxDrawdownMonth})`;
     byId("riskWorstMonth").textContent = pct(currentStatistics.worstMonthlyReturn);
     byId("riskPositiveMonths").textContent = pct(currentStatistics.positiveMonths);
-    byId("riskMoneyWeightedReturn").textContent = pct(currentStatistics.moneyWeightedAnnualizedReturn);
+    byId("riskMoneyWeightedReturn").textContent = pct(currentStatistics.xirr);
     byId("simulationModeLabel").textContent = currentSettings.fixedReturnsMode ? global.labels.ui.fixedReturns : global.labels.ui.gbmReturns;
     byId("macroSelectedLabel").textContent = global.marketData.macroScenarioPresets[currentSettings.selectedMacroScenario].label;
     byId("seedUsedLabel").textContent = currentSettings.seed;
@@ -74,27 +82,54 @@
     const items = [["Valore finale medio", money(s.meanFinal)], ["Valore finale mediano", money(s.medianFinal)], ["P5", money(s.p5)], ["P25", money(s.p25)], ["P75", money(s.p75)], ["P95", money(s.p95)], ["Probabilità obiettivo", pct(s.targetProbability)], ["Probabilità sotto versato", pct(s.lossProbability)], ["Capitale versato", money(s.totalContributed)], ["Mediana - versato", money(s.medianMinusContributed)]];
     box.innerHTML = items.map(([label, value]) => `<div class="col-sm-6 col-lg-3 mb-3"><div class="border rounded p-3 h-100"><div class="small text-muted">${label}</div><div class="h5 mb-0">${value}</div></div></div>`).join("");
   }
-  function clearMonteCarloState() {
+  function clearMonteCarloState(options) {
+    options = options || {};
     currentMonteCarlo = null;
     global.currentMonteCarlo = null;
-    if (global.MonteCarloGBM && typeof global.MonteCarloGBM.clearCache === "function") global.MonteCarloGBM.clearCache();
+    if (options.clearCache && global.MonteCarloGBM && typeof global.MonteCarloGBM.clearCache === "function") global.MonteCarloGBM.clearCache();
     if (global.WealthPathCharts && typeof global.WealthPathCharts.clearMonteCarloCharts === "function") global.WealthPathCharts.clearMonteCarloCharts();
     const status = byId("monteCarloStatus");
     if (status) status.textContent = global.labels.ui.noMonteCarlo;
     renderMonteCarloKpis();
   }
-  function runMonteCarloFromUi() {
+  function nextPaint() {
+    return new Promise((resolve) => {
+      if (typeof global.requestAnimationFrame === "function") global.requestAnimationFrame(() => resolve());
+      else global.setTimeout(resolve, 0);
+    });
+  }
+  async function runMonteCarloFromUi() {
     const status = byId("monteCarloStatus"); if (status) status.textContent = "Elaborazione in corso...";
+    const button = byId("runMonteCarloButton");
+    if (button) button.disabled = true;
     currentSettings = readSettingsFromForm();
     const validation = global.WealthPathValidation.validateSettings(currentSettings);
-    if (!validation.valid) { if (status) status.textContent = validation.errors.join(" "); setStatus(validation.errors.join(" "), "danger"); return; }
-    currentMonteCarlo = global.runMonteCarloGBM({ ...currentSettings, nScenarios: currentSettings.monteCarloScenarios });
-    global.currentMonteCarlo = currentMonteCarlo;
-    renderMonteCarloKpis();
-    global.WealthPathCharts.renderMonteCarloChart(currentMonteCarlo);
-    global.WealthPathCharts.renderHistogramChart(currentMonteCarlo);
-    if (status) status.textContent = `Monte Carlo completato con ${currentMonteCarlo.pathsCount} scenari.`;
-    global.WealthPathSettings.saveSettings(currentSettings);
+    if (!validation.valid) {
+      if (status) status.textContent = validation.errors.join(" ");
+      setStatus(validation.errors.join(" "), "danger");
+      if (button) button.disabled = false;
+      return null;
+    }
+    await nextPaint();
+    try {
+      currentMonteCarlo = global.runMonteCarloGBM({ ...currentSettings, nScenarios: currentSettings.monteCarloScenarios });
+      global.currentMonteCarlo = currentMonteCarlo;
+      renderMonteCarloKpis();
+      global.WealthPathCharts.renderMonteCarloChart(currentMonteCarlo);
+      global.WealthPathCharts.renderHistogramChart(currentMonteCarlo);
+      const cacheLabel = currentMonteCarlo.performance && currentMonteCarlo.performance.cacheHit ? " (cache)" : "";
+      if (status) status.textContent = `Monte Carlo completato con ${currentMonteCarlo.pathsCount} scenari${cacheLabel}.`;
+      global.WealthPathSettings.saveSettings(currentSettings);
+      return currentMonteCarlo;
+    } catch (error) {
+      clearMonteCarloState();
+      const message = error && error.message ? error.message : "Errore durante la simulazione Monte Carlo.";
+      if (status) status.textContent = message;
+      setStatus(message, "danger");
+      return null;
+    } finally {
+      if (button) button.disabled = false;
+    }
   }
   function renderDashboard(options) {
     options = options || {};

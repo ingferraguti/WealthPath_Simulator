@@ -45,6 +45,17 @@
       materiePrime: 0.20,
       oro: 0.18
     },
+    // Matrice di correlazione strutturale, simmetrica e definita positiva.
+    // L'ordine di righe e colonne coincide con assetClasses.
+    correlationMatrix: [
+      [1.00, -0.15, -0.05, 0.05, 0.55, 0.25, 0.05],
+      [-0.15, 1.00, 0.75, 0.55, 0.35, -0.15, 0.10],
+      [-0.05, 0.75, 1.00, 0.50, 0.45, -0.10, 0.05],
+      [0.05, 0.55, 0.50, 1.00, 0.40, 0.30, 0.35],
+      [0.55, 0.35, 0.45, 0.40, 1.00, 0.15, 0.10],
+      [0.25, -0.15, -0.10, 0.30, 0.15, 1.00, 0.30],
+      [0.05, 0.10, 0.05, 0.35, 0.10, 0.30, 1.00]
+    ],
     fixedMonthlyMultipliers: {
       azionarioGlobale: 1.0125,
       obblGovEU10: 1.0035,
@@ -96,7 +107,6 @@
     },
     futureIntegrations: {
       historicalMonthlyReturns: null,
-      correlationMatrix: null,
       optimization: null,
       decumulation: null,
       taxation: null
@@ -107,11 +117,6 @@
   // Fonte attesa: dataset validato o servizio esterno scelto dal progetto.
   // Formato atteso: { assetClass: [{ date: "YYYY-MM", multiplier: 1.0123 }] }.
   marketData.futureIntegrations.historicalMonthlyReturns = null;
-
-  // TOBE: inserire una matrice di correlazione validata tra le asset class.
-  // Fonte attesa: stime storiche o ipotesi approvate.
-  // Formato atteso: matrice quadrata coerente con l’ordine esplicito delle asset class.
-  marketData.futureIntegrations.correlationMatrix = null;
 
   // TOBE: definire l’obiettivo di ottimizzazione e i vincoli ammessi.
   // Fonte attesa: decisione di prodotto su rendimento, rischio, pesi minimi e pesi massimi.

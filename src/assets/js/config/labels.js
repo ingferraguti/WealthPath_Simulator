@@ -10,8 +10,8 @@
       targetCapital: "Capitale obiettivo", runMonteCarlo: "Esegui Monte Carlo", exportPdf: "Esporta PDF", resetDefaults: "Ripristina impostazioni predefinite",
       exportConfig: "Esporta configurazione", importConfig: "Importa configurazione", monthlyTable: "Tabella mensile", annualTable: "Tabella annuale",
       mainChart: "Andamento del portafoglio", donutChart: "Composizione", validationOk: "Parametri validi", importSuccess: "Configurazione importata correttamente.",
-      noMonteCarlo: "Monte Carlo non ancora eseguito.", annualizedReturn: "Rendimento TWRR annualizzato", moneyWeightedReturn: "Rendimento MWRR annualizzato",
-      annualizedVolatility: "Volatilità annualizzata", maxDrawdown: "Massimo drawdown", worstMonth: "Peggior mese", positiveMonths: "Mesi positivi"
+      noMonteCarlo: "Monte Carlo non ancora eseguito.", annualizedReturn: "Rendimento TWRR annualizzato", moneyWeightedReturn: "XIRR annualizzato",
+      annualizedVolatility: "Volatilità realizzata annualizzata", correlationVolatility: "Rischio ex ante correlato", diversificationBenefit: "Beneficio diversificazione", maxDrawdown: "Massimo drawdown", worstMonth: "Peggior mese", positiveMonths: "Mesi positivi"
     },
     assets: {
       azionarioGlobale: "Azionario globale", obblGovEU10: "Obbl. governative EU 10+ Y", obblGovEU3: "Obbl. governative EU 3-7 Y",

@@ -33,6 +33,9 @@
   function validateSettings(settings) {
     const md = global.marketData;
     const errors = [];
+    if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
+      return { valid: false, errors: ["La configurazione deve essere un oggetto valido."] };
+    }
     const initialInvestment = Number(settings.initialInvestment);
     const monthlyContribution = Number(settings.monthlyContribution);
     const years = Number(settings.timeHorizonYears);
@@ -53,7 +56,7 @@
   }
   function sanitizeSettings(raw) {
     const md = global.marketData;
-    raw = raw || {};
+    raw = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
     const result = {
       schemaVersion: md.schemaVersion,
       allocation: {},

@@ -40,7 +40,7 @@ jobs:
           test "$server_ready" = true
           chrome_bin="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
           test -n "$chrome_bin"
-          "$chrome_bin" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=10000 \
+          "$chrome_bin" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=20000 \
             --dump-dom 'http://127.0.0.1:8765/?debug=1&browserTest=1' > /tmp/wealthpath-browser.html
           grep -Eq 'data-simulation-tests="passed:[0-9]+"' /tmp/wealthpath-browser.html
-          grep -q 'data-browser-regression="passed:1"' /tmp/wealthpath-browser.html
+          grep -q 'data-browser-regression="passed:3"' /tmp/wealthpath-browser.html

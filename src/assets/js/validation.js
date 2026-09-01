@@ -46,8 +46,12 @@
     if (!md.allowedRebalanceFrequencies.includes(rebalance)) errors.push("La frequenza di ribilanciamento non è ammessa.");
     const mc = Number(settings.monteCarloScenarios);
     const targetCapital = Number(settings.targetCapital);
+    const withdrawalRate = toNumber(settings.annualWithdrawalRate, md.defaults.annualWithdrawalRate);
+    const taxRate = toNumber(settings.capitalGainsTaxRate, md.defaults.capitalGainsTaxRate);
     if (!Number.isInteger(mc) || mc < md.defaults.monteCarloMinScenarios || mc > md.defaults.monteCarloMaxScenarios) errors.push(`Gli scenari Monte Carlo devono essere un numero intero tra ${md.defaults.monteCarloMinScenarios} e ${md.defaults.monteCarloMaxScenarios}.`);
     if (!Number.isFinite(targetCapital) || targetCapital < 0) errors.push("Il capitale obiettivo deve essere maggiore o uguale a zero.");
+    if (!Number.isFinite(withdrawalRate) || withdrawalRate < 0 || withdrawalRate > 0.2) errors.push("Il prelievo annuo deve essere compreso tra 0% e 20%.");
+    if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 1) errors.push("L'aliquota sulle plusvalenze deve essere compresa tra 0% e 100%.");
     if (!Number.isInteger(Number(settings.seed)) || Number(settings.seed) < 0 || Number(settings.seed) > 0xFFFFFFFF) errors.push("Il seed deve essere un intero compreso tra 0 e 4294967295.");
     if (!md.macroScenarioPresets[settings.selectedMacroScenario]) errors.push("Lo scenario macro selezionato non è valido.");
     const allocationValidation = validateAllocation(settings.allocation || {});
@@ -67,6 +71,9 @@
       fixedReturnsMode: toBoolean(raw.fixedReturnsMode),
       enableMacroAdjustments: toBoolean(raw.enableMacroAdjustments),
       selectedMacroScenario: md.macroScenarioPresets[raw.selectedMacroScenario] ? raw.selectedMacroScenario : md.defaults.selectedMacroScenario,
+      enableRetirement: toBoolean(raw.enableRetirement),
+      annualWithdrawalRate: clampNumber(raw.annualWithdrawalRate, md.defaults.annualWithdrawalRate, 0, 0.2, false),
+      capitalGainsTaxRate: clampNumber(raw.capitalGainsTaxRate, md.defaults.capitalGainsTaxRate, 0, 1, false),
       monteCarloScenarios: clampNumber(raw.monteCarloScenarios, md.defaults.monteCarloScenarios, md.defaults.monteCarloMinScenarios, md.defaults.monteCarloMaxScenarios, true),
       targetCapital: clampNumber(raw.targetCapital, md.defaults.targetCapital, 0, Number.MAX_SAFE_INTEGER, false),
       seed: clampNumber(raw.seed, md.defaults.seed, 0, 0xFFFFFFFF, true)

@@ -11,6 +11,9 @@
       fixedReturnsMode: false,
       enableMacroAdjustments: false,
       selectedMacroScenario: "baseline",
+      enableRetirement: false,
+      annualWithdrawalRate: 0.035,
+      capitalGainsTaxRate: 0.26,
       monteCarloScenarios: 1000,
       monteCarloMinScenarios: 1,
       monteCarloMaxScenarios: 5000,
@@ -123,14 +126,14 @@
   // Formato atteso: { objective, constraints, boundsByAsset }.
   marketData.futureIntegrations.optimization = null;
 
-  // TOBE: definire le regole della fase di decumulo.
-  // Fonte attesa: decisione di prodotto su prelievo iniziale, indicizzazione, durata e gestione dei fallimenti.
-  // Formato atteso: { initialWithdrawal, inflationLinked, durationYears, withdrawalFrequency }.
+  // TOBE: estendere il retirement con indicizzazione all'inflazione, data di avvio e regole di prelievo adattivo.
+  // Fonte attesa: decisione di prodotto su durata, soglie di sostenibilità e gestione dei fallimenti.
+  // Formato atteso: { startMonth, inflationLinked, durationYears, adaptiveRules }.
   marketData.futureIntegrations.decumulation = null;
 
-  // TOBE: definire il modello fiscale applicabile alle diverse asset class e al regime dell’utente.
-  // Fonte attesa: specifiche fiscali validate.
-  // Formato atteso: { assetClass: { capitalGainRate, incomeRate, notes } }.
+  // TOBE: definire il modello fiscale specifico per asset class, dividendi e prelievi.
+  // Fonte attesa: specifiche fiscali validate per il regime dell'utente.
+  // Formato atteso: { assetClass: { capitalGainRate, incomeRate, withdrawalRate, notes } }.
   marketData.futureIntegrations.taxation = null;
 
   global.marketData = marketData;

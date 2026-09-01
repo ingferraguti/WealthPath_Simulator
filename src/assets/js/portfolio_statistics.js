@@ -5,7 +5,7 @@
     return Array.isArray(values) && values.length ? Number(values[values.length - 1]) || 0 : 0;
   }
 
-  function monthlyReturns(values, contributions) {
+  function monthlyReturns(values, contributions, withdrawals) {
     if (!Array.isArray(values) || values.length < 2) return [];
     const returns = [];
     for (let month = 1; month < values.length; month += 1) {
@@ -14,18 +14,21 @@
       const previousContribution = Array.isArray(contributions) ? Number(contributions[month - 1]) : 0;
       const currentContribution = Array.isArray(contributions) ? Number(contributions[month]) : 0;
       const contribution = currentContribution - previousContribution;
-      const investedAtStart = previous + contribution;
-      if (![previous, current, contribution].every(Number.isFinite)) continue;
+      const previousWithdrawal = Array.isArray(withdrawals) ? Number(withdrawals[month - 1]) : 0;
+      const currentWithdrawal = Array.isArray(withdrawals) ? Number(withdrawals[month]) : 0;
+      const withdrawal = currentWithdrawal - previousWithdrawal;
+      const investedAtStart = previous + contribution - withdrawal;
+      if (![previous, current, contribution, withdrawal].every(Number.isFinite)) continue;
       if (investedAtStart > 0) returns.push((current / investedAtStart) - 1);
       else if (current === 0) returns.push(0);
     }
     return returns;
   }
 
-  function totalReturn(values, contributed) {
+  function totalReturn(values, contributed, withdrawn) {
     const base = Number(contributed);
     if (!Number.isFinite(base) || base <= 0) return 0;
-    return (safeLast(values) / base) - 1;
+    return ((safeLast(values) + Math.max(0, Number(withdrawn) || 0)) / base) - 1;
   }
 
   function timeWeightedAnnualizedReturn(returns) {
@@ -97,25 +100,35 @@
     return Array.from({ length }, (_, month) => new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + month, base.getUTCDate())));
   }
 
-  function portfolioCashFlows(values, contributions, startDate) {
+  function portfolioCashFlows(values, contributions, withdrawals, startDate) {
+    if (startDate === undefined && (withdrawals instanceof Date || typeof withdrawals === "string" || typeof withdrawals === "number")) {
+      startDate = withdrawals;
+      withdrawals = null;
+    }
     if (!Array.isArray(values) || values.length < 2 || !Array.isArray(contributions) || contributions.length !== values.length) return { cashFlows: [], dates: [] };
     const cashFlows = Array.from({ length: values.length }, () => 0);
     cashFlows[0] = -Math.max(0, Number(contributions[0]) || 0);
     for (let month = 1; month < values.length; month += 1) {
       const contribution = Math.max(0, (Number(contributions[month]) || 0) - (Number(contributions[month - 1]) || 0));
       cashFlows[month - 1] -= contribution;
+      const withdrawal = Array.isArray(withdrawals) ? Math.max(0, (Number(withdrawals[month]) || 0) - (Number(withdrawals[month - 1]) || 0)) : 0;
+      cashFlows[month - 1] += withdrawal;
     }
     cashFlows[cashFlows.length - 1] += Math.max(0, Number(values[values.length - 1]) || 0);
     return { cashFlows, dates: monthlyDates(values.length, startDate) };
   }
 
-  function moneyWeightedAnnualizedReturn(values, contributions, startDate) {
-    const flows = portfolioCashFlows(values, contributions, startDate);
+  function moneyWeightedAnnualizedReturn(values, contributions, withdrawals, startDate) {
+    if (startDate === undefined && (withdrawals instanceof Date || typeof withdrawals === "string" || typeof withdrawals === "number")) {
+      startDate = withdrawals;
+      withdrawals = null;
+    }
+    const flows = portfolioCashFlows(values, contributions, withdrawals, startDate);
     return flows.cashFlows.length ? xirr(flows.cashFlows, flows.dates, 0.1) : 0;
   }
 
-  function annualizedReturn(values, contributions) {
-    return timeWeightedAnnualizedReturn(monthlyReturns(values, contributions));
+  function annualizedReturn(values, contributions, withdrawals) {
+    return timeWeightedAnnualizedReturn(monthlyReturns(values, contributions, withdrawals));
   }
 
   function annualizedVolatility(returns) {
@@ -203,9 +216,11 @@
     return data.length ? data.filter((value) => value < 0).length / data.length : 0;
   }
 
-  function calculatePortfolioStatistics(values, contributions, allocation) {
-    const returns = monthlyReturns(values, contributions);
+  function calculatePortfolioStatistics(values, contributions, allocation, withdrawals, rebalanceTaxes) {
+    const returns = monthlyReturns(values, contributions, withdrawals);
     const contributed = safeLast(contributions);
+    const totalWithdrawals = safeLast(withdrawals);
+    const totalRebalanceTaxes = safeLast(rebalanceTaxes);
     const growthIndex = returns.reduce((series, value) => {
       series.push(series[series.length - 1] * Math.max(0, 1 + value));
       return series;
@@ -214,9 +229,9 @@
     const marketData = global.marketData || {};
     const exAnteVolatility = correlationAdjustedVolatility(allocation, marketData.annualizedVolatility, marketData.correlationMatrix, marketData.assetClasses);
     const weightedAverageVolatility = (marketData.assetClasses || []).reduce((sum, asset) => sum + Math.max(0, Number(allocation && allocation[asset]) || 0) / 100 * Math.max(0, Number(marketData.annualizedVolatility && marketData.annualizedVolatility[asset]) || 0), 0);
-    const xirrValue = moneyWeightedAnnualizedReturn(values, contributions);
+    const xirrValue = moneyWeightedAnnualizedReturn(values, contributions, withdrawals);
     return {
-      totalReturn: totalReturn(values, contributed),
+      totalReturn: totalReturn(values, contributed, totalWithdrawals),
       annualizedReturn: timeWeightedAnnualizedReturn(returns),
       xirr: xirrValue,
       moneyWeightedAnnualizedReturn: xirrValue,
@@ -232,7 +247,11 @@
       worstMonthlyReturn: returns.length ? Math.min(...returns) : 0,
       positiveMonths: positiveMonths(returns),
       negativeMonths: negativeMonths(returns),
-      finalToContributedRatio: contributed > 0 ? safeLast(values) / contributed : 0
+      totalWithdrawals,
+      totalRebalanceTaxes,
+      netWealth: safeLast(values) + totalWithdrawals,
+      netProfit: safeLast(values) + totalWithdrawals - contributed,
+      finalToContributedRatio: contributed > 0 ? (safeLast(values) + totalWithdrawals) / contributed : 0
     };
   }
 

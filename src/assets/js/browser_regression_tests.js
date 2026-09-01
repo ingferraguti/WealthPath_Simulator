@@ -16,9 +16,17 @@
     const monteCarloPanel = document.getElementById("monteCarloPanel");
     const monthlyTable = document.getElementById("monthlyTable");
     const annualTable = document.getElementById("annualTable");
+    const retirementToggle = document.getElementById("enableRetirement");
+    const retirementSettings = document.getElementById("retirementSettings");
+    const withdrawalRate = document.getElementById("retirementWithdrawalRate");
+    const taxRate = document.getElementById("rebalanceTaxRate");
 
     try {
-      assert(status && kpis && scenarios && horizon && initialInvestment && singleTab && monteCarloTab && singlePanel && monteCarloPanel && monthlyTable && annualTable, "Controlli dell'interfaccia mancanti.");
+      assert(status && kpis && scenarios && horizon && initialInvestment && singleTab && monteCarloTab && singlePanel && monteCarloPanel && monthlyTable && annualTable && retirementToggle && retirementSettings && withdrawalRate && taxRate, "Controlli dell'interfaccia mancanti.");
+      assert(Number(taxRate.value) === 26 && Number(withdrawalRate.value) === 3.5 && retirementSettings.classList.contains("d-none"), "Valori retirement predefiniti errati.");
+      retirementToggle.checked = true;
+      retirementToggle.dispatchEvent(new Event("change"));
+      assert(!retirementSettings.classList.contains("d-none"), "Controlli retirement non attivabili.");
       assert(singleTab.classList.contains("active") && !monteCarloTab.classList.contains("active"), "Scheda iniziale errata.");
       assert(monthlyTable.closest("section").parentElement === singlePanel && annualTable.closest("section").parentElement === singlePanel, "Tabelle non nella simulazione singola.");
       assert(monthlyTable.closest("section").nextElementSibling === annualTable.closest("section"), "Tabelle non disposte una sotto l'altra.");
@@ -61,8 +69,8 @@
       assert(global.WealthPathCharts.chartRefs.portfolio.data.labels.length <= global.WealthPathCharts.MAX_LINE_POINTS, "Grafico lungo non campionato.");
       assert(document.querySelectorAll("#monthlyTable tbody tr").length === 601, "Tabella mensile a 50 anni incompleta.");
 
-      root.dataset.browserRegression = "passed:3";
-      return [{ name: "struttura a schede e tabelle verticali", ok: true }, { name: "invalidazione Monte Carlo dopo modifica input", ok: true }, { name: "rendering orizzonte massimo", ok: true }];
+      root.dataset.browserRegression = "passed:4";
+      return [{ name: "struttura a schede e tabelle verticali", ok: true }, { name: "controlli retirement e fiscalità", ok: true }, { name: "invalidazione Monte Carlo dopo modifica input", ok: true }, { name: "rendering orizzonte massimo", ok: true }];
     } catch (error) {
       root.dataset.browserRegression = "failed";
       root.dataset.browserRegressionError = error.message;

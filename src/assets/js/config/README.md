@@ -6,7 +6,7 @@
 
 - `schemaVersion`: versione del formato persistito.
 - `assetClasses`: ordine canonico delle asset class. Lo stesso ordine è usato dalla matrice di correlazione.
-- `defaults`: importi, orizzonte, ribilanciamento, modalità, scenario macro, Monte Carlo, obiettivo e seed iniziali.
+- `defaults`: importi, orizzonte, ribilanciamento, aliquota fiscale, retirement, modalità, scenario macro, Monte Carlo, obiettivo e seed iniziali.
 - `allowedRebalanceFrequencies`: frequenze annue ammesse.
 - `allocation`: pesi percentuali predefiniti; devono totalizzare 100.
 - `annualizedReturns`: rendimenti annui attesi usati nel drift GBM.
@@ -14,7 +14,7 @@
 - `correlationMatrix`: matrice simmetrica, con diagonale unitaria e definita positiva. Determina sia gli shock GBM correlati sia la volatilità ex ante del portafoglio.
 - `fixedMonthlyMultipliers`: moltiplicatori mensili della modalità a rendimenti fissi.
 - `macroDriftConfig`, `assetClassSensitivities` e `macroScenarioPresets`: configurazione degli aggiustamenti macroeconomici.
-- `futureIntegrations`: punti di estensione non ancora implementati per serie storiche, ottimizzazione, decumulo e fiscalità.
+- `futureIntegrations`: punti di estensione non ancora implementati per serie storiche, ottimizzazione e fiscalità specifica per asset class.
 
 ## Aggiornamento sicuro
 

@@ -42,9 +42,10 @@
       `Seed: ${settings.seed}`,
       `Investimento iniziale: ${money(settings.initialInvestment)} | Contributo mensile: ${money(settings.monthlyContribution)} | Orizzonte: ${settings.timeHorizonYears} anni`,
       `Modalità: ${settings.fixedReturnsMode ? "rendimenti fissi" : "GBM"} | Ribilanciamento: ${global.labels.rebalance[settings.rebalanceFrequencyPerYear]}`,
+      `Retirement: ${settings.enableRetirement ? `attivo, prelievo annuo ${pct(settings.annualWithdrawalRate)}` : "disattivato"} | Aliquota plusvalenze da ribilanciamento: ${pct(settings.capitalGainsTaxRate)}`,
       `Scenario macro: ${settings.enableMacroAdjustments ? global.marketData.macroScenarioPresets[settings.selectedMacroScenario].label : "disattivato"}`,
       `Allocazione: ${global.marketData.assetClasses.map((asset) => `${global.labels.assets[asset]} ${settings.allocation[asset]}%`).join("; ")}`,
-      `Valore finale: ${money(simulation.finalValue)} | Capitale versato: ${money(simulation.contributions[simulation.contributions.length - 1])} | Valore reale finale: ${simulation.finalRealValue === null ? "n.d." : money(simulation.finalRealValue)}`,
+      `Valore finale: ${money(simulation.finalValue)} | Capitale versato: ${money(simulation.contributions[simulation.contributions.length - 1])} | Prelievi cumulati: ${money(simulation.totalWithdrawals)} | Tasse da ribilanciamento: ${money(simulation.totalRebalanceTaxes)} | Valore reale finale: ${simulation.finalRealValue === null ? "n.d." : money(simulation.finalRealValue)}`,
       `Rendimento TWRR annualizzato: ${pct(stats.annualizedReturn)} | XIRR annualizzato: ${pct(stats.xirr)} | Volatilità realizzata: ${pct(stats.annualizedVolatility)} | Rischio ex ante correlato: ${pct(stats.correlationAdjustedVolatility)} | Beneficio diversificazione: ${pct(stats.diversificationBenefit)} | Massimo drawdown: ${pct(stats.maxDrawdown)}`
     ], y);
     if (mc) y = addTextLines(pdf, [`Monte Carlo: media finale ${money(mc.stats.meanFinal)}, mediana ${money(mc.stats.medianFinal)}, P5 ${money(mc.stats.p5)}, P95 ${money(mc.stats.p95)}, probabilità obiettivo ${pct(mc.stats.targetProbability)}.`], y + 2);

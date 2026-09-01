@@ -110,6 +110,48 @@
     return Math.max(0, V.toNumber(state.initialInvestment, 0)) + Math.max(0, V.toNumber(state.monthlyContribution, 0)) * Math.max(0, Math.round(Number(month) || 0));
   }
 
+  function totalPortfolioValue(portfolio) {
+    return portfolio.reduce((sum, value) => sum + Math.max(0, Number(value) || 0), 0);
+  }
+
+  function withdrawProRata(portfolio, costBasis, requestedAmount) {
+    const total = totalPortfolioValue(portfolio);
+    const withdrawal = Math.min(Math.max(0, Number(requestedAmount) || 0), total);
+    if (withdrawal === 0 || total === 0) return 0;
+    const proportion = withdrawal / total;
+    for (let assetIndex = 0; assetIndex < portfolio.length; assetIndex += 1) {
+      portfolio[assetIndex] *= 1 - proportion;
+      costBasis[assetIndex] *= 1 - proportion;
+    }
+    return withdrawal;
+  }
+
+  function rebalancePortfolioWithTaxes(portfolio, costBasis, weights, capitalGainsTaxRate) {
+    const total = totalPortfolioValue(portfolio);
+    if (total === 0) return 0;
+    const taxRate = Math.max(0, Math.min(1, Number(capitalGainsTaxRate) || 0));
+    let taxes = 0;
+    for (let assetIndex = 0; assetIndex < portfolio.length; assetIndex += 1) {
+      const currentValue = portfolio[assetIndex];
+      const targetValue = total * weights[assetIndex];
+      if (currentValue > targetValue && currentValue > 0) {
+        const sale = currentValue - targetValue;
+        const costBasisSold = costBasis[assetIndex] * (sale / currentValue);
+        taxes += Math.max(0, sale - costBasisSold) * taxRate;
+        costBasis[assetIndex] = Math.max(0, costBasis[assetIndex] - costBasisSold);
+      } else if (targetValue > currentValue) {
+        costBasis[assetIndex] += targetValue - currentValue;
+      }
+      portfolio[assetIndex] = targetValue;
+    }
+    const scaleAfterTaxes = Math.max(0, total - taxes) / total;
+    for (let assetIndex = 0; assetIndex < portfolio.length; assetIndex += 1) {
+      portfolio[assetIndex] *= scaleAfterTaxes;
+      costBasis[assetIndex] *= scaleAfterTaxes;
+    }
+    return taxes;
+  }
+
   function prepareSimulation(options) {
     options = options || {};
     const suppliedRandom = typeof options.random === "function" ? options.random : null;
@@ -157,9 +199,15 @@
   function simulateNominalPath(prepared, random) {
     const settings = prepared.settings;
     const portfolio = new Float64Array(prepared.assetCount);
-    for (let assetIndex = 0; assetIndex < prepared.assetCount; assetIndex += 1) portfolio[assetIndex] = settings.initialInvestment * prepared.weights[assetIndex];
+    const costBasis = new Float64Array(prepared.assetCount);
+    for (let assetIndex = 0; assetIndex < prepared.assetCount; assetIndex += 1) {
+      portfolio[assetIndex] = settings.initialInvestment * prepared.weights[assetIndex];
+      costBasis[assetIndex] = portfolio[assetIndex];
+    }
     const nominalValues = new Float64Array(prepared.months + 1);
     const realValues = settings.enableMacroAdjustments ? new Float64Array(prepared.months + 1) : null;
+    const withdrawals = new Float64Array(prepared.months + 1);
+    const rebalanceTaxes = new Float64Array(prepared.months + 1);
     nominalValues[0] = settings.initialInvestment;
     if (realValues) realValues[0] = settings.initialInvestment;
     const nextNormal = createNormalGenerator(random || prepared.suppliedRandom || createPrng(settings.seed));
@@ -167,11 +215,19 @@
     for (let month = 1; month <= prepared.months; month += 1) {
       let total = 0;
       for (let assetIndex = 0; assetIndex < prepared.assetCount; assetIndex += 1) {
-        portfolio[assetIndex] += settings.monthlyContribution * prepared.weights[assetIndex];
+        const contribution = settings.monthlyContribution * prepared.weights[assetIndex];
+        portfolio[assetIndex] += contribution;
+        costBasis[assetIndex] += contribution;
         total += portfolio[assetIndex];
       }
+      const monthlyWithdrawal = settings.enableRetirement ? total * settings.annualWithdrawalRate / 12 : 0;
+      const withdrawn = withdrawProRata(portfolio, costBasis, monthlyWithdrawal);
+      withdrawals[month] = withdrawals[month - 1] + withdrawn;
       if (prepared.rebalanceEveryMonths > 0 && month % prepared.rebalanceEveryMonths === 0) {
-        for (let assetIndex = 0; assetIndex < prepared.assetCount; assetIndex += 1) portfolio[assetIndex] = total * prepared.weights[assetIndex];
+        const taxes = rebalancePortfolioWithTaxes(portfolio, costBasis, prepared.weights, settings.capitalGainsTaxRate);
+        rebalanceTaxes[month] = rebalanceTaxes[month - 1] + taxes;
+      } else {
+        rebalanceTaxes[month] = rebalanceTaxes[month - 1];
       }
       const shocks = settings.fixedReturnsMode ? null : correlatedStandardNormals(nextNormal, prepared.correlationCholesky);
       total = 0;
@@ -192,7 +248,16 @@
         realValues[month] = total / cumulativeInflation;
       }
     }
-    return { nominalValues, realValues, finalValue: nominalValues[prepared.months], finalRealValue: realValues ? realValues[prepared.months] : null };
+    return {
+      nominalValues,
+      realValues,
+      withdrawals,
+      rebalanceTaxes,
+      finalValue: nominalValues[prepared.months],
+      finalRealValue: realValues ? realValues[prepared.months] : null,
+      totalWithdrawals: withdrawals[prepared.months],
+      totalRebalanceTaxes: rebalanceTaxes[prepared.months]
+    };
   }
 
   function simulatePortfolioPath(options) {
@@ -201,10 +266,14 @@
     return {
       nominalValues: Array.from(path.nominalValues),
       contributions: calculateContributionsSeries(prepared.settings.initialInvestment, prepared.settings.monthlyContribution, prepared.months),
+      withdrawals: Array.from(path.withdrawals),
+      rebalanceTaxes: Array.from(path.rebalanceTaxes),
       realValues: path.realValues ? Array.from(path.realValues) : [],
       macroSeries: prepared.macroSeries,
       finalValue: path.finalValue,
-      finalRealValue: path.finalRealValue
+      finalRealValue: path.finalRealValue,
+      totalWithdrawals: path.totalWithdrawals,
+      totalRebalanceTaxes: path.totalRebalanceTaxes
     };
   }
 
@@ -227,6 +296,8 @@
   global.rebalancePortfolio = rebalancePortfolio;
   global.calculateContributionsSeries = calculateContributionsSeries;
   global.calculateContribValue = calculateContribValue;
+  global.withdrawProRata = withdrawProRata;
+  global.rebalancePortfolioWithTaxes = rebalancePortfolioWithTaxes;
   global.prepareSimulation = prepareSimulation;
   global.simulateNominalPath = simulateNominalPath;
   global.simulatePortfolioPath = simulatePortfolioPath;

@@ -5,14 +5,17 @@ Simulatore statico, eseguito interamente nel browser, per analizzare l'evoluzion
 ## Funzionalità disponibili
 
 - simulazione mensile con rendimenti fissi o Geometric Brownian Motion (GBM);
-- seed riproducibile, contribuzione mensile e ribilanciamento configurabile;
+- seed riproducibile, contribuzione mensile, fase di retirement con prelievo percentuale e ribilanciamento configurabile;
+- imposte sulle plusvalenze realizzate dal ribilanciamento, con aliquota configurabile e predefinita al 26%;
 - asset allocation interattiva con ridistribuzione automatica al 100%;
 - scenari macroeconomici opzionali e valori reali corretti per l'inflazione;
 - Monte Carlo da 1 a 5.000 scenari con shock correlati, cache LRU, bande percentili, istogramma e probabilità di raggiungimento dell'obiettivo;
 - metriche TWRR, XIRR datato, volatilità realizzata, rischio ex ante basato sulle correlazioni, massimo drawdown e frequenza dei mesi positivi;
-- tabelle mensili e annuali corrette per i flussi di cassa;
+- tabelle mensili e annuali con versamenti, prelievi retirement e tasse da ribilanciamento;
 - persistenza locale, import/export della configurazione ed esportazione PDF;
-- validazione e sanificazione di importi, orizzonte, seed, scenari e allocazione.
+- validazione e sanificazione di importi, orizzonte, seed, aliquote, scenari e allocazione.
+
+Nel retirement, il prelievo è applicato mensilmente al valore corrente del portafoglio (`aliquota annua / 12`). Le imposte sono una stima sulle plusvalenze realizzate dalle sole vendite di ribilanciamento: non includono ancora fiscalità su prelievi, cedole, dividendi o regimi specifici dell'investitore.
 
 ## Avvio locale
 
@@ -50,10 +53,8 @@ La pipeline GitHub Actions controlla a ogni push e pull request:
 ## Sviluppi previsti, non ancora implementati
 
 - serie storiche mensili validate;
-- matrice di correlazione tra asset class;
 - ottimizzazione del portafoglio con vincoli;
-- fase di decumulo;
-- modello fiscale.
+- fiscalità completa per prelievi, dividendi e specifiche asset class.
 
 Questi elementi sono dichiarati in `marketData.futureIntegrations` e richiedono dati o specifiche di prodotto validate prima dell'implementazione.
 

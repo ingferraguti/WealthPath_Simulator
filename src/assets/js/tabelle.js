@@ -14,10 +14,12 @@
       const value = simulation.nominalValues[month];
       const previous = month > 0 ? simulation.nominalValues[month - 1] : value;
       const contribution = month > 0 ? simulation.contributions[month] - simulation.contributions[month - 1] : 0;
-      const monthlyPerformance = month > 0 && previous + contribution > 0 ? (value / (previous + contribution)) - 1 : 0;
-      rows[month] = `<tr><td>${month}</td><td>${euro(value)}</td><td>${euro(simulation.contributions[month])}</td><td>${euro(value - previous)}</td><td>${percent(monthlyPerformance)}</td></tr>`;
+      const withdrawal = month > 0 ? simulation.withdrawals[month] - simulation.withdrawals[month - 1] : 0;
+      const tax = month > 0 ? simulation.rebalanceTaxes[month] - simulation.rebalanceTaxes[month - 1] : 0;
+      const monthlyPerformance = month > 0 && previous + contribution - withdrawal > 0 ? (value / (previous + contribution - withdrawal)) - 1 : 0;
+      rows[month] = `<tr><td>${month}</td><td>${euro(value)}</td><td>${euro(simulation.contributions[month])}</td><td>${euro(withdrawal)}</td><td>${euro(tax)}</td><td>${percent(monthlyPerformance)}</td></tr>`;
     }
-    table.innerHTML = tableMarkup(["Mese", "Valore", "Capitale versato", "Incremento mensile", "Performance mensile"], rows);
+    table.innerHTML = tableMarkup(["Mese", "Valore", "Capitale versato", "Prelievo mese", "Tasse ribil.", "Performance mensile"], rows);
   }
 
   function renderAnnualTable(simulation) {
@@ -29,12 +31,11 @@
       const month = year * 12;
       const previousMonth = (year - 1) * 12;
       const value = simulation.nominalValues[month];
-      const previous = simulation.nominalValues[previousMonth];
-      const annualReturns = global.PortfolioStatistics.monthlyReturns(simulation.nominalValues.slice(previousMonth, month + 1), simulation.contributions.slice(previousMonth, month + 1));
+      const annualReturns = global.PortfolioStatistics.monthlyReturns(simulation.nominalValues.slice(previousMonth, month + 1), simulation.contributions.slice(previousMonth, month + 1), simulation.withdrawals.slice(previousMonth, month + 1));
       const annualReturn = annualReturns.reduce((growth, monthlyReturn) => growth * (1 + monthlyReturn), 1) - 1;
-      rows[year - 1] = `<tr><td>${year}</td><td>${euro(value)}</td><td>${euro(simulation.contributions[month])}</td><td>${euro(value - previous)}</td><td>${percent(annualReturn)}</td></tr>`;
+      rows[year - 1] = `<tr><td>${year}</td><td>${euro(value)}</td><td>${euro(simulation.contributions[month])}</td><td>${euro(simulation.withdrawals[month])}</td><td>${euro(simulation.rebalanceTaxes[month])}</td><td>${percent(annualReturn)}</td></tr>`;
     }
-    table.innerHTML = tableMarkup(["Anno", "Valore", "Capitale versato", "Incremento annuale", "Performance annuale"], rows);
+    table.innerHTML = tableMarkup(["Anno", "Valore", "Capitale versato", "Prelievi cumulati", "Tasse ribil. cumulate", "Performance annua"], rows);
   }
 
   function creaTabella() { if (global.currentSimulation) renderMonthlyTable(global.currentSimulation); }

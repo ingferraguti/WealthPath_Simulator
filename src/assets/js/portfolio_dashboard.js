@@ -38,7 +38,10 @@
   function syncFormValues() {
     if (!currentSettings) return;
     [["initialInvestment", "initialInvestment"], ["monthlyContribution", "monthlyContribution"], ["timeHorizonYears", "timeHorizonYears"], ["rebalanceFrequencyPerYear", "rebalanceFrequencyPerYear"], ["monteCarloScenarios", "monteCarloScenarios"], ["targetCapital", "targetCapital"], ["simulationSeed", "seed"], ["macroScenarioSelect", "selectedMacroScenario"]].forEach(([id, key]) => { const el = byId(id); if (el) el.value = currentSettings[key]; });
-    ["fixedReturnsMode", "enableMacroAdjustments"].forEach((key) => { const el = byId(key); if (el) el.checked = Boolean(currentSettings[key]); });
+    ["fixedReturnsMode", "enableMacroAdjustments", "enableRetirement"].forEach((key) => { const el = byId(key); if (el) el.checked = Boolean(currentSettings[key]); });
+    const withdrawalRate = byId("retirementWithdrawalRate"); if (withdrawalRate) withdrawalRate.value = (currentSettings.annualWithdrawalRate * 100).toFixed(2);
+    const taxRate = byId("rebalanceTaxRate"); if (taxRate) taxRate.value = (currentSettings.capitalGainsTaxRate * 100).toFixed(2);
+    const retirementSettings = byId("retirementSettings"); if (retirementSettings) retirementSettings.classList.toggle("d-none", !currentSettings.enableRetirement);
     global.marketData.assetClasses.forEach((asset) => {
       const range = byId(`alloc-${asset}`); const number = byId(`alloc-number-${asset}`); const label = byId(`alloc-label-${asset}`);
       if (range) range.value = currentSettings.allocation[asset]; if (number) number.value = currentSettings.allocation[asset]; if (label) label.textContent = `${currentSettings.allocation[asset]}%`;
@@ -51,6 +54,9 @@
     currentSettings.rebalanceFrequencyPerYear = Number(byId("rebalanceFrequencyPerYear").value);
     currentSettings.fixedReturnsMode = byId("fixedReturnsMode").checked;
     currentSettings.enableMacroAdjustments = byId("enableMacroAdjustments").checked;
+    currentSettings.enableRetirement = byId("enableRetirement").checked;
+    currentSettings.annualWithdrawalRate = Number(byId("retirementWithdrawalRate").value) / 100;
+    currentSettings.capitalGainsTaxRate = Number(byId("rebalanceTaxRate").value) / 100;
     currentSettings.selectedMacroScenario = byId("macroScenarioSelect").value;
     currentSettings.monteCarloScenarios = Number(byId("monteCarloScenarios").value);
     currentSettings.targetCapital = Number(byId("targetCapital").value);
@@ -60,7 +66,9 @@
   function updateKpis() {
     byId("kpiFinalValue").textContent = money(currentSimulation.finalValue);
     byId("kpiContributions").textContent = money(currentSimulation.contributions[currentSimulation.contributions.length - 1]);
-    byId("kpiPerformance").textContent = money(currentSimulation.finalValue - currentSimulation.contributions[currentSimulation.contributions.length - 1]);
+    byId("kpiWithdrawals").textContent = money(currentStatistics.totalWithdrawals);
+    byId("kpiRebalanceTaxes").textContent = money(currentStatistics.totalRebalanceTaxes);
+    byId("kpiPerformance").textContent = money(currentStatistics.netProfit);
     byId("kpiPerformancePct").textContent = pct(currentStatistics.totalReturn);
     byId("kpiRealFinalValue").textContent = currentSimulation.finalRealValue === null ? "Scenario macro disattivato" : money(currentSimulation.finalRealValue);
     byId("riskAnnualizedReturn").textContent = pct(currentStatistics.annualizedReturn);
@@ -79,7 +87,7 @@
     const box = byId("monteCarloKpis"); if (!box) return;
     if (!currentMonteCarlo) { box.innerHTML = `<div class="col-12 text-muted">${global.labels.ui.noMonteCarlo}</div>`; return; }
     const s = currentMonteCarlo.stats;
-    const items = [["Valore finale medio", money(s.meanFinal)], ["Valore finale mediano", money(s.medianFinal)], ["P5", money(s.p5)], ["P25", money(s.p25)], ["P75", money(s.p75)], ["P95", money(s.p95)], ["Probabilità obiettivo", pct(s.targetProbability)], ["Probabilità sotto versato", pct(s.lossProbability)], ["Capitale versato", money(s.totalContributed)], ["Mediana - versato", money(s.medianMinusContributed)]];
+    const items = [["Valore finale medio", money(s.meanFinal)], ["Valore finale mediano", money(s.medianFinal)], ["P5", money(s.p5)], ["P25", money(s.p25)], ["P75", money(s.p75)], ["P95", money(s.p95)], ["Probabilità obiettivo", pct(s.targetProbability)], ["Probabilità sotto versato", pct(s.lossProbability)], ["Capitale versato", money(s.totalContributed)], ["Prelievi medi", money(s.meanTotalWithdrawals)], ["Tasse medie da ribilanciamento", money(s.meanRebalanceTaxes)], ["Mediana - versato", money(s.medianMinusContributed)]];
     box.innerHTML = items.map(([label, value]) => `<div class="col-sm-6 col-lg-3 mb-3"><div class="border rounded p-3 h-100"><div class="small text-muted">${label}</div><div class="h5 mb-0">${value}</div></div></div>`).join("");
   }
   function clearMonteCarloState(options) {
@@ -142,7 +150,7 @@
     global.randomSeedManager.setSeed(currentSettings.seed);
     global.setMacroScenario(currentSettings.selectedMacroScenario); global.setMacroEnabled(currentSettings.enableMacroAdjustments); global.rebuildMacroScenario(currentSettings.timeHorizonYears * 12);
     currentSimulation = global.simulatePortfolioPath(currentSettings);
-    currentStatistics = global.PortfolioStatistics.calculatePortfolioStatistics(currentSimulation.nominalValues, currentSimulation.contributions, currentSettings.allocation);
+    currentStatistics = global.PortfolioStatistics.calculatePortfolioStatistics(currentSimulation.nominalValues, currentSimulation.contributions, currentSettings.allocation, currentSimulation.withdrawals, currentSimulation.rebalanceTaxes);
     global.currentSettings = currentSettings; global.currentSimulation = currentSimulation; global.currentStatistics = currentStatistics;
     syncFormValues(); updateKpis();
     global.WealthPathCharts.renderAllocationChart(currentSettings.allocation);
@@ -163,8 +171,8 @@
     currentSettings = global.WealthPathSettings.loadSettings();
     const applySimulationSettings = () => { currentSettings = readSettingsFromForm(); clearMonteCarloState(); renderDashboard(); };
     const applyMonteCarloSettings = () => { currentSettings = readSettingsFromForm(); syncFormValues(); clearMonteCarloState(); global.WealthPathSettings.saveSettings(currentSettings); };
-    ["initialInvestment", "monthlyContribution", "timeHorizonYears", "simulationSeed"].forEach((id) => byId(id).addEventListener("blur", applySimulationSettings));
-    ["rebalanceFrequencyPerYear", "fixedReturnsMode", "enableMacroAdjustments", "macroScenarioSelect"].forEach((id) => byId(id).addEventListener("change", applySimulationSettings));
+    ["initialInvestment", "monthlyContribution", "timeHorizonYears", "simulationSeed", "retirementWithdrawalRate", "rebalanceTaxRate"].forEach((id) => byId(id).addEventListener("blur", applySimulationSettings));
+    ["rebalanceFrequencyPerYear", "fixedReturnsMode", "enableMacroAdjustments", "macroScenarioSelect", "enableRetirement"].forEach((id) => byId(id).addEventListener("change", applySimulationSettings));
     ["monteCarloScenarios", "targetCapital"].forEach((id) => byId(id).addEventListener("blur", applyMonteCarloSettings));
     byId("runMonteCarloButton").addEventListener("click", runMonteCarloFromUi);
     byId("resetDefaultsButton").addEventListener("click", resetDefaults);

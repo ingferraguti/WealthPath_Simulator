@@ -32,7 +32,14 @@ La suite automatica richiede Node.js 20 o successivo:
 node tests/run-simulation-tests.mjs
 ```
 
-Per eseguire la stessa suite nel browser, aprire l'applicazione aggiungendo `?debug=1` all'URL. La pipeline GitHub Actions controlla inoltre la sintassi di tutti i file JavaScript a ogni push e pull request.
+Per eseguire la stessa suite nel browser, aprire l'applicazione aggiungendo `?debug=1` all'URL. La regressione browser sullo stato Monte Carlo può essere avviata con `?debug=1&browserTest=1`.
+
+La pipeline GitHub Actions controlla a ogni push e pull request:
+
+- sintassi dei file JavaScript;
+- test deterministici di simulazione;
+- presenza di SRI sulle dipendenze remote;
+- regressione in Chrome headless sull'invalidazione dei risultati Monte Carlo obsoleti.
 
 ## Configurazione
 

@@ -4,6 +4,14 @@ import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const indexHtml = fs.readFileSync(path.join(repositoryRoot, "src/index.html"), "utf8");
+const remoteScripts = Array.from(indexHtml.matchAll(/<script\b[^>]*\bsrc=["']https:\/\/[^"']+["'][^>]*>/gi), (match) => match[0]);
+for (const scriptTag of remoteScripts) {
+  if (!/\bintegrity=["']sha(256|384|512)-/i.test(scriptTag) || !/\bcrossorigin=["']anonymous["']/i.test(scriptTag)) {
+    throw new Error(`Dipendenza remota priva di SRI: ${scriptTag}`);
+  }
+}
+console.log(`PASS ${remoteScripts.length} dipendenze remote protette con SRI`);
 const storedValues = new Map();
 const context = {
   console,

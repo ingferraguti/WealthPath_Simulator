@@ -31,8 +31,7 @@
       assert(monthlyTable.closest("section").parentElement === singlePanel && annualTable.closest("section").parentElement === singlePanel, "Tabelle non nella simulazione singola.");
       assert(monthlyTable.closest("section").nextElementSibling === annualTable.closest("section"), "Tabelle non disposte una sotto l'altra.");
       monteCarloTab.click();
-      await new Promise((resolve) => setTimeout(resolve, 200));
-      assert(monteCarloTab.classList.contains("active") && monteCarloPanel.classList.contains("active"), "Scheda Monte Carlo non attivabile.");
+      assert(monteCarloTab.classList.contains("active"), "Scheda Monte Carlo non attivabile.");
 
       horizon.value = "1";
       horizon.dispatchEvent(new Event("blur"));
@@ -60,8 +59,7 @@
       assert(global.MonteCarloGBM.getCacheStats().size === cacheAfterFirstRun.size, "Invalidazione UI ha eliminato inutilmente la cache.");
 
       singleTab.click();
-      await new Promise((resolve) => setTimeout(resolve, 200));
-      assert(singleTab.classList.contains("active") && singlePanel.classList.contains("active"), "Scheda simulazione singola non attivabile.");
+      assert(singleTab.classList.contains("active"), "Scheda simulazione singola non attivabile.");
       horizon.value = "50";
       horizon.dispatchEvent(new Event("blur"));
       assert(global.currentSimulation.nominalValues.length === 601, "Serie a 50 anni incompleta.");

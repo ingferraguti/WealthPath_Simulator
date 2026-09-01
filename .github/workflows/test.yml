@@ -43,4 +43,4 @@ jobs:
           "$chrome_bin" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=20000 \
             --dump-dom 'http://127.0.0.1:8765/?debug=1&browserTest=1' > /tmp/wealthpath-browser.html
           grep -Eq 'data-simulation-tests="passed:[0-9]+"' /tmp/wealthpath-browser.html
-          grep -q 'data-browser-regression="passed:4"' /tmp/wealthpath-browser.html
+          grep -q 'data-browser-regression="passed:4"' /tmp/wealthpath-browser.html || { cat /tmp/wealthpath-browser.html; exit 1; }

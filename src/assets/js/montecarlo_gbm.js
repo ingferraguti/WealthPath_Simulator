@@ -101,6 +101,8 @@
     const finalValues = new Float64Array(settings.monteCarloScenarios);
     const totalWithdrawals = new Float64Array(settings.monteCarloScenarios);
     const totalRebalanceTaxes = new Float64Array(settings.monteCarloScenarios);
+    const totalLombardInterest = new Float64Array(settings.monteCarloScenarios);
+    const marginCalls = new Uint8Array(settings.monteCarloScenarios);
     for (let scenario = 0; scenario < settings.monteCarloScenarios; scenario += 1) {
       const random = global.createPrng((settings.seed + scenario * 7919) >>> 0);
       const path = global.simulateNominalPath(prepared, random);
@@ -108,12 +110,16 @@
       finalValues[scenario] = path.finalValue;
       totalWithdrawals[scenario] = path.totalWithdrawals;
       totalRebalanceTaxes[scenario] = path.totalRebalanceTaxes;
+      totalLombardInterest[scenario] = path.totalLombardInterest;
+      marginCalls[scenario] = path.marginCallOccurred ? 1 : 0;
     }
     const sorted = finalValues.slice();
     sorted.sort();
     let sumFinal = 0;
     let sumWithdrawals = 0;
     let sumTaxes = 0;
+    let sumLombardInterest = 0;
+    let marginCallCount = 0;
     let successCount = 0;
     let lossCount = 0;
     const contributions = global.calculateContributionsSeries(settings.initialInvestment, settings.monthlyContribution, prepared.months);
@@ -123,6 +129,8 @@
       sumFinal += value;
       sumWithdrawals += totalWithdrawals[scenario];
       sumTaxes += totalRebalanceTaxes[scenario];
+      sumLombardInterest += totalLombardInterest[scenario];
+      marginCallCount += marginCalls[scenario];
       if (target > 0 && value >= target) successCount += 1;
       if (value + totalWithdrawals[scenario] < totalContributed) lossCount += 1;
     });
@@ -131,6 +139,8 @@
       meanFinal: sumFinal / finalValues.length,
       meanTotalWithdrawals: sumWithdrawals / finalValues.length,
       meanRebalanceTaxes: sumTaxes / finalValues.length,
+      meanLombardInterest: sumLombardInterest / finalValues.length,
+      marginCallProbability: marginCallCount / finalValues.length,
       medianFinal: median,
       p5: percentileFromSorted(sorted, 5),
       p25: percentileFromSorted(sorted, 25),

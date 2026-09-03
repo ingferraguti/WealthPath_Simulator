@@ -152,6 +152,17 @@
     return taxes;
   }
 
+  function lombardCollateralValue(portfolio, usage) {
+    if (usage === "equity-leverage") return Math.max(0, Number(portfolio[0]) || 0);
+    return totalPortfolioValue(portfolio);
+  }
+
+  function lombardLtv(debt, portfolio, usage) {
+    if (debt <= 0) return 0;
+    const collateral = lombardCollateralValue(portfolio, usage);
+    return collateral > 0 ? debt / collateral : Infinity;
+  }
+
   function prepareSimulation(options) {
     options = options || {};
     const suppliedRandom = typeof options.random === "function" ? options.random : null;
@@ -204,14 +215,42 @@
       portfolio[assetIndex] = settings.initialInvestment * prepared.weights[assetIndex];
       costBasis[assetIndex] = portfolio[assetIndex];
     }
+    const lombardEnabled = settings.enableLombard && settings.lombardLeverage > 0;
+    const initialLoan = lombardEnabled ? settings.initialInvestment * settings.lombardLeverage : 0;
+    let lombardDebt = initialLoan;
+    let lombardCashReserve = 0;
+    if (lombardEnabled && settings.lombardUsage === "liquidity") {
+      lombardCashReserve = initialLoan;
+    } else if (lombardEnabled && settings.lombardUsage === "equity-leverage") {
+      portfolio[0] += initialLoan;
+      costBasis[0] += initialLoan;
+    } else if (lombardEnabled) {
+      for (let assetIndex = 0; assetIndex < prepared.assetCount; assetIndex += 1) {
+        const loanAllocation = initialLoan * prepared.weights[assetIndex];
+        portfolio[assetIndex] += loanAllocation;
+        costBasis[assetIndex] += loanAllocation;
+      }
+    }
     const nominalValues = new Float64Array(prepared.months + 1);
     const realValues = settings.enableMacroAdjustments ? new Float64Array(prepared.months + 1) : null;
     const withdrawals = new Float64Array(prepared.months + 1);
     const rebalanceTaxes = new Float64Array(prepared.months + 1);
-    nominalValues[0] = settings.initialInvestment;
-    if (realValues) realValues[0] = settings.initialInvestment;
+    const lombardDebts = new Float64Array(prepared.months + 1);
+    const lombardCashReserves = new Float64Array(prepared.months + 1);
+    const lombardCollateral = new Float64Array(prepared.months + 1);
+    const lombardLtvs = new Float64Array(prepared.months + 1);
+    const lombardInterests = new Float64Array(prepared.months + 1);
+    const marginCalls = new Uint8Array(prepared.months + 1);
+    lombardDebts[0] = lombardDebt;
+    lombardCashReserves[0] = lombardCashReserve;
+    lombardCollateral[0] = lombardEnabled ? lombardCollateralValue(portfolio, settings.lombardUsage) : 0;
+    lombardLtvs[0] = lombardEnabled ? lombardLtv(lombardDebt, portfolio, settings.lombardUsage) : 0;
+    if (lombardEnabled && lombardLtvs[0] >= settings.lombardMarginCallLtv) marginCalls[0] = 1;
+    nominalValues[0] = totalPortfolioValue(portfolio) + lombardCashReserve - lombardDebt;
+    if (realValues) realValues[0] = nominalValues[0];
     const nextNormal = createNormalGenerator(random || prepared.suppliedRandom || createPrng(settings.seed));
     let cumulativeInflation = 1;
+    let marginCallMonth = marginCalls[0] ? 0 : null;
     for (let month = 1; month <= prepared.months; month += 1) {
       let total = 0;
       for (let assetIndex = 0; assetIndex < prepared.assetCount; assetIndex += 1) {
@@ -221,7 +260,11 @@
         total += portfolio[assetIndex];
       }
       const monthlyWithdrawal = settings.enableRetirement ? total * settings.annualWithdrawalRate / 12 : 0;
-      const withdrawn = withdrawProRata(portfolio, costBasis, monthlyWithdrawal);
+      const reserveWithdrawal = lombardEnabled && settings.lombardUsage === "liquidity"
+        ? Math.min(lombardCashReserve, monthlyWithdrawal)
+        : 0;
+      lombardCashReserve -= reserveWithdrawal;
+      const withdrawn = reserveWithdrawal + withdrawProRata(portfolio, costBasis, monthlyWithdrawal - reserveWithdrawal);
       withdrawals[month] = withdrawals[month - 1] + withdrawn;
       if (prepared.rebalanceEveryMonths > 0 && month % prepared.rebalanceEveryMonths === 0) {
         const taxes = rebalancePortfolioWithTaxes(portfolio, costBasis, prepared.weights, settings.capitalGainsTaxRate);
@@ -241,11 +284,22 @@
         portfolio[assetIndex] *= Number.isFinite(multiplier) && multiplier >= 0 ? multiplier : 1;
         total += Number.isFinite(portfolio[assetIndex]) ? portfolio[assetIndex] : 0;
       }
-      nominalValues[month] = total;
+      const monthlyInterest = lombardEnabled ? lombardDebt * settings.lombardInterestRate / 12 : 0;
+      lombardDebt += monthlyInterest;
+      lombardDebts[month] = lombardDebt;
+      lombardCashReserves[month] = lombardCashReserve;
+      lombardCollateral[month] = lombardEnabled ? lombardCollateralValue(portfolio, settings.lombardUsage) : 0;
+      lombardLtvs[month] = lombardEnabled ? lombardLtv(lombardDebt, portfolio, settings.lombardUsage) : 0;
+      if (lombardEnabled && lombardLtvs[month] >= settings.lombardMarginCallLtv) {
+        marginCalls[month] = 1;
+        if (marginCallMonth === null) marginCallMonth = month;
+      }
+      lombardInterests[month] = lombardInterests[month - 1] + monthlyInterest;
+      nominalValues[month] = total + lombardCashReserve - lombardDebt;
       if (realValues) {
         const inflation = Math.max(-0.999999, V.toNumber(prepared.macroSeries[month] && prepared.macroSeries[month].inflation, 0));
         cumulativeInflation *= Math.pow(1 + inflation, 1 / 12);
-        realValues[month] = total / cumulativeInflation;
+        realValues[month] = nominalValues[month] / cumulativeInflation;
       }
     }
     return {
@@ -253,10 +307,22 @@
       realValues,
       withdrawals,
       rebalanceTaxes,
+      lombardDebts,
+      lombardCashReserves,
+      lombardCollateral,
+      lombardLtvs,
+      lombardInterests,
+      marginCalls,
       finalValue: nominalValues[prepared.months],
       finalRealValue: realValues ? realValues[prepared.months] : null,
       totalWithdrawals: withdrawals[prepared.months],
-      totalRebalanceTaxes: rebalanceTaxes[prepared.months]
+      totalRebalanceTaxes: rebalanceTaxes[prepared.months],
+      lombardEnabled,
+      lombardUsage: settings.lombardUsage,
+      initialLombardLoan: initialLoan,
+      totalLombardInterest: lombardInterests[prepared.months],
+      marginCallOccurred: marginCallMonth !== null,
+      marginCallMonth
     };
   }
 
@@ -268,12 +334,24 @@
       contributions: calculateContributionsSeries(prepared.settings.initialInvestment, prepared.settings.monthlyContribution, prepared.months),
       withdrawals: Array.from(path.withdrawals),
       rebalanceTaxes: Array.from(path.rebalanceTaxes),
+      lombardDebts: Array.from(path.lombardDebts),
+      lombardCashReserves: Array.from(path.lombardCashReserves),
+      lombardCollateral: Array.from(path.lombardCollateral),
+      lombardLtvs: Array.from(path.lombardLtvs),
+      lombardInterests: Array.from(path.lombardInterests),
+      marginCalls: Array.from(path.marginCalls),
       realValues: path.realValues ? Array.from(path.realValues) : [],
       macroSeries: prepared.macroSeries,
       finalValue: path.finalValue,
       finalRealValue: path.finalRealValue,
       totalWithdrawals: path.totalWithdrawals,
-      totalRebalanceTaxes: path.totalRebalanceTaxes
+      totalRebalanceTaxes: path.totalRebalanceTaxes,
+      lombardEnabled: path.lombardEnabled,
+      lombardUsage: path.lombardUsage,
+      initialLombardLoan: path.initialLombardLoan,
+      totalLombardInterest: path.totalLombardInterest,
+      marginCallOccurred: path.marginCallOccurred,
+      marginCallMonth: path.marginCallMonth
     };
   }
 
@@ -298,6 +376,8 @@
   global.calculateContribValue = calculateContribValue;
   global.withdrawProRata = withdrawProRata;
   global.rebalancePortfolioWithTaxes = rebalancePortfolioWithTaxes;
+  global.lombardCollateralValue = lombardCollateralValue;
+  global.lombardLtv = lombardLtv;
   global.prepareSimulation = prepareSimulation;
   global.simulateNominalPath = simulateNominalPath;
   global.simulatePortfolioPath = simulatePortfolioPath;

@@ -56,11 +56,12 @@
   function renderPortfolioChart(simulation, macroEnabled) {
     const indexes = sampleIndexes(simulation.nominalValues.length, MAX_LINE_POINTS);
     const datasets = [
-      { label: "Valore nominale", data: sampledSeries(simulation.nominalValues, indexes), borderColor: "#4e73df", backgroundColor: "rgba(78,115,223,0.08)", fill: false, pointRadius: 0, lineTension: 0.15 },
+      { label: "Patrimonio netto", data: sampledSeries(simulation.nominalValues, indexes), borderColor: simulation.marginCallOccurred ? "#e74a3b" : "#4e73df", backgroundColor: "rgba(78,115,223,0.08)", fill: false, pointRadius: 0, lineTension: 0.15 },
       { label: "Capitale versato", data: sampledSeries(simulation.contributions, indexes), borderColor: "#1cc88a", backgroundColor: "rgba(28,200,138,0.08)", fill: false, pointRadius: 0, borderDash: [6, 4], lineTension: 0 }
     ];
     if (simulation.withdrawals && simulation.withdrawals[simulation.withdrawals.length - 1] > 0) datasets.push({ label: "Prelievi cumulati", data: sampledSeries(simulation.withdrawals, indexes), borderColor: "#e74a3b", backgroundColor: "rgba(231,74,59,0.08)", fill: false, pointRadius: 0, borderDash: [3, 3], lineTension: 0 });
     if (simulation.rebalanceTaxes && simulation.rebalanceTaxes[simulation.rebalanceTaxes.length - 1] > 0) datasets.push({ label: "Tasse da ribilanciamento", data: sampledSeries(simulation.rebalanceTaxes, indexes), borderColor: "#858796", backgroundColor: "rgba(133,135,150,0.08)", fill: false, pointRadius: 0, borderDash: [2, 4], lineTension: 0 });
+    if (simulation.lombardEnabled) datasets.push({ label: "Debito Lombard", data: sampledSeries(simulation.lombardDebts, indexes), borderColor: "#f6c23e", backgroundColor: "rgba(246,194,62,0.08)", fill: false, pointRadius: 0, borderDash: [5, 3], lineTension: 0 });
     if (macroEnabled && simulation.realValues.length) datasets.push({ label: "Valore reale", data: sampledSeries(simulation.realValues, indexes), borderColor: "#f6c23e", backgroundColor: "rgba(246,194,62,0.08)", fill: false, pointRadius: 0, lineTension: 0.15 });
     return createChart("portfolio", "portfolioChart", {
       type: "line",

@@ -20,13 +20,34 @@
     const retirementSettings = document.getElementById("retirementSettings");
     const withdrawalRate = document.getElementById("retirementWithdrawalRate");
     const taxRate = document.getElementById("rebalanceTaxRate");
+    const lombardToggle = document.getElementById("enableLombard");
+    const lombardSettings = document.getElementById("lombardSettings");
+    const lombardUsage = document.getElementById("lombardUsage");
+    const lombardLeverage = document.getElementById("lombardLeverage");
+    const lombardInterestRate = document.getElementById("lombardInterestRate");
+    const lombardMarginCallLtv = document.getElementById("lombardMarginCallLtv");
+    const lombardSummary = document.getElementById("lombardSummary");
+    const lombardMarginCallAlert = document.getElementById("lombardMarginCallAlert");
+    const resetButton = document.getElementById("resetDefaultsButton");
 
     try {
-      assert(status && kpis && scenarios && horizon && initialInvestment && singleTab && monteCarloTab && singlePanel && monteCarloPanel && monthlyTable && annualTable && retirementToggle && retirementSettings && withdrawalRate && taxRate, "Controlli dell'interfaccia mancanti.");
+      assert(status && kpis && scenarios && horizon && initialInvestment && singleTab && monteCarloTab && singlePanel && monteCarloPanel && monthlyTable && annualTable && retirementToggle && retirementSettings && withdrawalRate && taxRate && lombardToggle && lombardSettings && lombardUsage && lombardLeverage && lombardInterestRate && lombardMarginCallLtv && lombardSummary && lombardMarginCallAlert && resetButton, "Controlli dell'interfaccia mancanti.");
+      resetButton.click();
       assert(Number(taxRate.value) === 26 && Number(withdrawalRate.value) === 3.5 && retirementSettings.classList.contains("d-none"), "Valori retirement predefiniti errati.");
       retirementToggle.checked = true;
       retirementToggle.dispatchEvent(new Event("change"));
       assert(!retirementSettings.classList.contains("d-none"), "Controlli retirement non attivabili.");
+      assert(Number(lombardLeverage.value) === 30 && Number(lombardInterestRate.value) === 3 && Number(lombardMarginCallLtv.value) === 75 && lombardSettings.classList.contains("d-none") && lombardSummary.classList.contains("d-none"), "Valori Lombard predefiniti errati.");
+      lombardToggle.checked = true;
+      lombardToggle.dispatchEvent(new Event("change"));
+      lombardUsage.value = "equity-leverage";
+      lombardUsage.dispatchEvent(new Event("change"));
+      lombardLeverage.value = "60";
+      lombardLeverage.dispatchEvent(new Event("change"));
+      lombardMarginCallLtv.value = "61";
+      lombardMarginCallLtv.dispatchEvent(new Event("blur"));
+      assert(!lombardSettings.classList.contains("d-none") && !lombardSummary.classList.contains("d-none") && !lombardMarginCallAlert.classList.contains("d-none"), "Lombard o margin call non visualizzati.");
+      assert(document.querySelector("#monthlyTable tbody tr.table-danger"), "Riga mensile margin call non evidenziata.");
       assert(singleTab.classList.contains("active") && !monteCarloTab.classList.contains("active"), "Scheda iniziale errata.");
       assert(monthlyTable.closest("section").parentElement === singlePanel && annualTable.closest("section").parentElement === singlePanel, "Tabelle non nella simulazione singola.");
       assert(monthlyTable.closest("section").nextElementSibling === annualTable.closest("section"), "Tabelle non disposte una sotto l'altra.");
@@ -42,6 +63,7 @@
       assert(global.currentMonteCarlo && global.currentMonteCarlo.pathsCount === 3, "Monte Carlo non eseguito.");
       assert(status.textContent.includes("completato con 3 scenari"), "Stato di completamento assente.");
       assert(!kpis.textContent.includes(global.labels.ui.noMonteCarlo), "KPI Monte Carlo non popolati.");
+      assert(kpis.textContent.includes("Probabilità margin call") && global.currentMonteCarlo.stats.marginCallProbability > 0, "Probabilità margin call non mostrata.");
       const cacheAfterFirstRun = global.MonteCarloGBM.getCacheStats();
       assert(cacheAfterFirstRun.size >= 1 && cacheAfterFirstRun.size <= cacheAfterFirstRun.maxEntries, "Risultato Monte Carlo non memorizzato in cache.");
 
@@ -67,8 +89,8 @@
       assert(global.WealthPathCharts.chartRefs.portfolio.data.labels.length <= global.WealthPathCharts.MAX_LINE_POINTS, "Grafico lungo non campionato.");
       assert(document.querySelectorAll("#monthlyTable tbody tr").length === 601, "Tabella mensile a 50 anni incompleta.");
 
-      root.dataset.browserRegression = "passed:4";
-      return [{ name: "struttura a schede e tabelle verticali", ok: true }, { name: "controlli retirement e fiscalità", ok: true }, { name: "invalidazione Monte Carlo dopo modifica input", ok: true }, { name: "rendering orizzonte massimo", ok: true }];
+      root.dataset.browserRegression = "passed:5";
+      return [{ name: "struttura a schede e tabelle verticali", ok: true }, { name: "controlli retirement e fiscalità", ok: true }, { name: "controlli Lombard e margin call", ok: true }, { name: "invalidazione Monte Carlo dopo modifica input", ok: true }, { name: "rendering orizzonte massimo", ok: true }];
     } catch (error) {
       root.dataset.browserRegression = "failed";
       root.dataset.browserRegressionError = error.message;

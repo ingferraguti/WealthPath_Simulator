@@ -48,10 +48,18 @@
     const targetCapital = Number(settings.targetCapital);
     const withdrawalRate = toNumber(settings.annualWithdrawalRate, md.defaults.annualWithdrawalRate);
     const taxRate = toNumber(settings.capitalGainsTaxRate, md.defaults.capitalGainsTaxRate);
+    const lombardLeverage = toNumber(settings.lombardLeverage, md.defaults.lombardLeverage);
+    const lombardInterestRate = toNumber(settings.lombardInterestRate, md.defaults.lombardInterestRate);
+    const lombardMarginCallLtv = toNumber(settings.lombardMarginCallLtv, md.defaults.lombardMarginCallLtv);
+    const lombardUsage = settings.lombardUsage === undefined ? md.defaults.lombardUsage : settings.lombardUsage;
     if (!Number.isInteger(mc) || mc < md.defaults.monteCarloMinScenarios || mc > md.defaults.monteCarloMaxScenarios) errors.push(`Gli scenari Monte Carlo devono essere un numero intero tra ${md.defaults.monteCarloMinScenarios} e ${md.defaults.monteCarloMaxScenarios}.`);
     if (!Number.isFinite(targetCapital) || targetCapital < 0) errors.push("Il capitale obiettivo deve essere maggiore o uguale a zero.");
     if (!Number.isFinite(withdrawalRate) || withdrawalRate < 0 || withdrawalRate > 0.2) errors.push("Il prelievo annuo deve essere compreso tra 0% e 20%.");
     if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 1) errors.push("L'aliquota sulle plusvalenze deve essere compresa tra 0% e 100%.");
+    if (!Number.isFinite(lombardLeverage) || lombardLeverage < 0 || lombardLeverage > 0.6) errors.push("La leva Lombard deve essere compresa tra 0% e 60% del capitale proprio.");
+    if (!Number.isFinite(lombardInterestRate) || lombardInterestRate < 0 || lombardInterestRate > 0.2) errors.push("Il tasso Lombard deve essere compreso tra 0% e 20%.");
+    if (!Number.isFinite(lombardMarginCallLtv) || lombardMarginCallLtv <= 0.6 || lombardMarginCallLtv > 0.95) errors.push("La soglia di margin call deve essere compresa tra 60% e 95% LTV.");
+    if (!["liquidity", "equity-leverage", "portfolio-leverage"].includes(lombardUsage)) errors.push("La modalità Lombard selezionata non è valida.");
     if (!Number.isInteger(Number(settings.seed)) || Number(settings.seed) < 0 || Number(settings.seed) > 0xFFFFFFFF) errors.push("Il seed deve essere un intero compreso tra 0 e 4294967295.");
     if (!md.macroScenarioPresets[settings.selectedMacroScenario]) errors.push("Lo scenario macro selezionato non è valido.");
     const allocationValidation = validateAllocation(settings.allocation || {});
@@ -74,6 +82,11 @@
       enableRetirement: toBoolean(raw.enableRetirement),
       annualWithdrawalRate: clampNumber(raw.annualWithdrawalRate, md.defaults.annualWithdrawalRate, 0, 0.2, false),
       capitalGainsTaxRate: clampNumber(raw.capitalGainsTaxRate, md.defaults.capitalGainsTaxRate, 0, 1, false),
+      enableLombard: toBoolean(raw.enableLombard),
+      lombardUsage: ["liquidity", "equity-leverage", "portfolio-leverage"].includes(raw.lombardUsage) ? raw.lombardUsage : md.defaults.lombardUsage,
+      lombardLeverage: clampNumber(raw.lombardLeverage, md.defaults.lombardLeverage, 0, 0.6, false),
+      lombardInterestRate: clampNumber(raw.lombardInterestRate, md.defaults.lombardInterestRate, 0, 0.2, false),
+      lombardMarginCallLtv: clampNumber(raw.lombardMarginCallLtv, md.defaults.lombardMarginCallLtv, 0.6001, 0.95, false),
       monteCarloScenarios: clampNumber(raw.monteCarloScenarios, md.defaults.monteCarloScenarios, md.defaults.monteCarloMinScenarios, md.defaults.monteCarloMaxScenarios, true),
       targetCapital: clampNumber(raw.targetCapital, md.defaults.targetCapital, 0, Number.MAX_SAFE_INTEGER, false),
       seed: clampNumber(raw.seed, md.defaults.seed, 0, 0xFFFFFFFF, true)

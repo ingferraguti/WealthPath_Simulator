@@ -6,6 +6,7 @@
   let currentMonteCarlo = null;
   let pendingAllocationRender = null;
   function pct(value) { return `${((Number(value) || 0) * 100).toFixed(2)}%`; }
+  function ltv(value) { return Number.isFinite(value) ? pct(value) : "non disponibile"; }
   function money(value) { return euro.format(Number(value) || 0); }
   function byId(id) { return document.getElementById(id); }
   function setStatus(message, type) {
@@ -38,10 +39,16 @@
   function syncFormValues() {
     if (!currentSettings) return;
     [["initialInvestment", "initialInvestment"], ["monthlyContribution", "monthlyContribution"], ["timeHorizonYears", "timeHorizonYears"], ["rebalanceFrequencyPerYear", "rebalanceFrequencyPerYear"], ["monteCarloScenarios", "monteCarloScenarios"], ["targetCapital", "targetCapital"], ["simulationSeed", "seed"], ["macroScenarioSelect", "selectedMacroScenario"]].forEach(([id, key]) => { const el = byId(id); if (el) el.value = currentSettings[key]; });
-    ["fixedReturnsMode", "enableMacroAdjustments", "enableRetirement"].forEach((key) => { const el = byId(key); if (el) el.checked = Boolean(currentSettings[key]); });
+    ["fixedReturnsMode", "enableMacroAdjustments", "enableRetirement", "enableLombard"].forEach((key) => { const el = byId(key); if (el) el.checked = Boolean(currentSettings[key]); });
     const withdrawalRate = byId("retirementWithdrawalRate"); if (withdrawalRate) withdrawalRate.value = (currentSettings.annualWithdrawalRate * 100).toFixed(2);
     const taxRate = byId("rebalanceTaxRate"); if (taxRate) taxRate.value = (currentSettings.capitalGainsTaxRate * 100).toFixed(2);
     const retirementSettings = byId("retirementSettings"); if (retirementSettings) retirementSettings.classList.toggle("d-none", !currentSettings.enableRetirement);
+    const lombardUsage = byId("lombardUsage"); if (lombardUsage) lombardUsage.value = currentSettings.lombardUsage;
+    const lombardLeverage = byId("lombardLeverage"); if (lombardLeverage) lombardLeverage.value = (currentSettings.lombardLeverage * 100).toFixed(0);
+    const lombardLeverageLabel = byId("lombardLeverageLabel"); if (lombardLeverageLabel) lombardLeverageLabel.textContent = `${(currentSettings.lombardLeverage * 100).toFixed(0)}%`;
+    const lombardInterestRate = byId("lombardInterestRate"); if (lombardInterestRate) lombardInterestRate.value = (currentSettings.lombardInterestRate * 100).toFixed(2);
+    const lombardMarginCallLtv = byId("lombardMarginCallLtv"); if (lombardMarginCallLtv) lombardMarginCallLtv.value = (currentSettings.lombardMarginCallLtv * 100).toFixed(0);
+    const lombardSettings = byId("lombardSettings"); if (lombardSettings) lombardSettings.classList.toggle("d-none", !currentSettings.enableLombard);
     global.marketData.assetClasses.forEach((asset) => {
       const range = byId(`alloc-${asset}`); const number = byId(`alloc-number-${asset}`); const label = byId(`alloc-label-${asset}`);
       if (range) range.value = currentSettings.allocation[asset]; if (number) number.value = currentSettings.allocation[asset]; if (label) label.textContent = `${currentSettings.allocation[asset]}%`;
@@ -57,6 +64,11 @@
     currentSettings.enableRetirement = byId("enableRetirement").checked;
     currentSettings.annualWithdrawalRate = Number(byId("retirementWithdrawalRate").value) / 100;
     currentSettings.capitalGainsTaxRate = Number(byId("rebalanceTaxRate").value) / 100;
+    currentSettings.enableLombard = byId("enableLombard").checked;
+    currentSettings.lombardUsage = byId("lombardUsage").value;
+    currentSettings.lombardLeverage = Number(byId("lombardLeverage").value) / 100;
+    currentSettings.lombardInterestRate = Number(byId("lombardInterestRate").value) / 100;
+    currentSettings.lombardMarginCallLtv = Number(byId("lombardMarginCallLtv").value) / 100;
     currentSettings.selectedMacroScenario = byId("macroScenarioSelect").value;
     currentSettings.monteCarloScenarios = Number(byId("monteCarloScenarios").value);
     currentSettings.targetCapital = Number(byId("targetCapital").value);
@@ -82,12 +94,30 @@
     byId("simulationModeLabel").textContent = currentSettings.fixedReturnsMode ? global.labels.ui.fixedReturns : global.labels.ui.gbmReturns;
     byId("macroSelectedLabel").textContent = global.marketData.macroScenarioPresets[currentSettings.selectedMacroScenario].label;
     byId("seedUsedLabel").textContent = currentSettings.seed;
+    const lombardSummary = byId("lombardSummary");
+    if (!lombardSummary) return;
+    lombardSummary.classList.toggle("d-none", !currentSettings.enableLombard);
+    if (!currentSettings.enableLombard) return;
+    const last = currentSimulation.lombardDebts.length - 1;
+    byId("lombardDebtValue").textContent = money(currentSimulation.lombardDebts[last]);
+    byId("lombardInterestValue").textContent = money(currentSimulation.totalLombardInterest);
+    byId("lombardCollateralValue").textContent = money(currentSimulation.lombardCollateral[last]);
+    byId("lombardLtvValue").textContent = ltv(currentSimulation.lombardLtvs[last]);
+    const marginAlert = byId("lombardMarginCallAlert");
+    const marginText = byId("lombardMarginCallText");
+    const hasMarginCall = currentSimulation.marginCallOccurred;
+    if (marginAlert) marginAlert.classList.toggle("d-none", !hasMarginCall);
+    if (marginText && hasMarginCall) {
+      const month = currentSimulation.marginCallMonth;
+      marginText.textContent = `Margin call al mese ${month}: LTV ${ltv(currentSimulation.lombardLtvs[month])}, soglia ${pct(currentSettings.lombardMarginCallLtv)}.`;
+    }
   }
   function renderMonteCarloKpis() {
     const box = byId("monteCarloKpis"); if (!box) return;
     if (!currentMonteCarlo) { box.innerHTML = `<div class="col-12 text-muted">${global.labels.ui.noMonteCarlo}</div>`; return; }
     const s = currentMonteCarlo.stats;
     const items = [["Valore finale medio", money(s.meanFinal)], ["Valore finale mediano", money(s.medianFinal)], ["P5", money(s.p5)], ["P25", money(s.p25)], ["P75", money(s.p75)], ["P95", money(s.p95)], ["Probabilità obiettivo", pct(s.targetProbability)], ["Probabilità sotto versato", pct(s.lossProbability)], ["Capitale versato", money(s.totalContributed)], ["Prelievi medi", money(s.meanTotalWithdrawals)], ["Tasse medie da ribilanciamento", money(s.meanRebalanceTaxes)], ["Mediana - versato", money(s.medianMinusContributed)]];
+    if (currentSettings && currentSettings.enableLombard) items.splice(10, 0, ["Probabilità margin call", pct(s.marginCallProbability)], ["Interessi Lombard medi", money(s.meanLombardInterest)]);
     box.innerHTML = items.map(([label, value]) => `<div class="col-sm-6 col-lg-3 mb-3"><div class="border rounded p-3 h-100"><div class="small text-muted">${label}</div><div class="h5 mb-0">${value}</div></div></div>`).join("");
   }
   function clearMonteCarloState(options) {
@@ -171,8 +201,9 @@
     currentSettings = global.WealthPathSettings.loadSettings();
     const applySimulationSettings = () => { currentSettings = readSettingsFromForm(); clearMonteCarloState(); renderDashboard(); };
     const applyMonteCarloSettings = () => { currentSettings = readSettingsFromForm(); syncFormValues(); clearMonteCarloState(); global.WealthPathSettings.saveSettings(currentSettings); };
-    ["initialInvestment", "monthlyContribution", "timeHorizonYears", "simulationSeed", "retirementWithdrawalRate", "rebalanceTaxRate"].forEach((id) => byId(id).addEventListener("blur", applySimulationSettings));
-    ["rebalanceFrequencyPerYear", "fixedReturnsMode", "enableMacroAdjustments", "macroScenarioSelect", "enableRetirement"].forEach((id) => byId(id).addEventListener("change", applySimulationSettings));
+    ["initialInvestment", "monthlyContribution", "timeHorizonYears", "simulationSeed", "retirementWithdrawalRate", "rebalanceTaxRate", "lombardInterestRate", "lombardMarginCallLtv"].forEach((id) => byId(id).addEventListener("blur", applySimulationSettings));
+    ["rebalanceFrequencyPerYear", "fixedReturnsMode", "enableMacroAdjustments", "macroScenarioSelect", "enableRetirement", "enableLombard", "lombardUsage", "lombardLeverage"].forEach((id) => byId(id).addEventListener("change", applySimulationSettings));
+    byId("lombardLeverage").addEventListener("input", () => { byId("lombardLeverageLabel").textContent = `${byId("lombardLeverage").value}%`; });
     ["monteCarloScenarios", "targetCapital"].forEach((id) => byId(id).addEventListener("blur", applyMonteCarloSettings));
     byId("runMonteCarloButton").addEventListener("click", runMonteCarloFromUi);
     byId("resetDefaultsButton").addEventListener("click", resetDefaults);

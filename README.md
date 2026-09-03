@@ -7,6 +7,7 @@ Simulatore statico, eseguito interamente nel browser, per analizzare l'evoluzion
 - simulazione mensile con rendimenti fissi o Geometric Brownian Motion (GBM);
 - seed riproducibile, contribuzione mensile, fase di retirement con prelievo percentuale e ribilanciamento configurabile;
 - imposte sulle plusvalenze realizzate dal ribilanciamento, con aliquota configurabile e predefinita al 26%;
+- finanziamento Lombard opzionale: riserva di liquidità, leva azionaria o sull'intero portafoglio, tasso configurabile, limite di leva al 60%, monitoraggio LTV e avviso/probabilità di margin call;
 - asset allocation interattiva con ridistribuzione automatica al 100%;
 - scenari macroeconomici opzionali e valori reali corretti per l'inflazione;
 - Monte Carlo da 1 a 5.000 scenari con shock correlati, cache LRU, bande percentili, istogramma e probabilità di raggiungimento dell'obiettivo;
@@ -15,7 +16,7 @@ Simulatore statico, eseguito interamente nel browser, per analizzare l'evoluzion
 - persistenza locale, import/export della configurazione ed esportazione PDF;
 - validazione e sanificazione di importi, orizzonte, seed, aliquote, scenari e allocazione.
 
-Nel retirement, il prelievo è applicato mensilmente al valore corrente del portafoglio (`aliquota annua / 12`). Le imposte sono una stima sulle plusvalenze realizzate dalle sole vendite di ribilanciamento: non includono ancora fiscalità su prelievi, cedole, dividendi o regimi specifici dell'investitore.
+Nel retirement, il prelievo è applicato mensilmente al valore corrente del portafoglio (`aliquota annua / 12`). Il Lombard parte come percentuale del capitale iniziale e capitalizza mensilmente gli interessi; la margin call viene segnalata quando il rapporto debito/garanzia raggiunge la soglia LTV impostata. È un modello informativo: non incorpora liquidazioni forzose, variazioni contrattuali di haircut o fiscalità su prelievi, cedole, dividendi e regimi specifici dell'investitore.
 
 ## Avvio locale
 

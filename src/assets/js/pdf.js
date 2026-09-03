@@ -43,12 +43,14 @@
       `Investimento iniziale: ${money(settings.initialInvestment)} | Contributo mensile: ${money(settings.monthlyContribution)} | Orizzonte: ${settings.timeHorizonYears} anni`,
       `Modalità: ${settings.fixedReturnsMode ? "rendimenti fissi" : "GBM"} | Ribilanciamento: ${global.labels.rebalance[settings.rebalanceFrequencyPerYear]}`,
       `Retirement: ${settings.enableRetirement ? `attivo, prelievo annuo ${pct(settings.annualWithdrawalRate)}` : "disattivato"} | Aliquota plusvalenze da ribilanciamento: ${pct(settings.capitalGainsTaxRate)}`,
+      `Lombard: ${settings.enableLombard ? `attivo (${settings.lombardUsage}), leva ${pct(settings.lombardLeverage)}, tasso ${pct(settings.lombardInterestRate)}, soglia ${pct(settings.lombardMarginCallLtv)} LTV` : "disattivato"}`,
       `Scenario macro: ${settings.enableMacroAdjustments ? global.marketData.macroScenarioPresets[settings.selectedMacroScenario].label : "disattivato"}`,
       `Allocazione: ${global.marketData.assetClasses.map((asset) => `${global.labels.assets[asset]} ${settings.allocation[asset]}%`).join("; ")}`,
       `Valore finale: ${money(simulation.finalValue)} | Capitale versato: ${money(simulation.contributions[simulation.contributions.length - 1])} | Prelievi cumulati: ${money(simulation.totalWithdrawals)} | Tasse da ribilanciamento: ${money(simulation.totalRebalanceTaxes)} | Valore reale finale: ${simulation.finalRealValue === null ? "n.d." : money(simulation.finalRealValue)}`,
+      settings.enableLombard ? `Debito Lombard finale: ${money(simulation.lombardDebts[simulation.lombardDebts.length - 1])} | Interessi maturati: ${money(simulation.totalLombardInterest)} | Margin call: ${simulation.marginCallOccurred ? `sì, mese ${simulation.marginCallMonth}` : "no"}` : "",
       `Rendimento TWRR annualizzato: ${pct(stats.annualizedReturn)} | XIRR annualizzato: ${pct(stats.xirr)} | Volatilità realizzata: ${pct(stats.annualizedVolatility)} | Rischio ex ante correlato: ${pct(stats.correlationAdjustedVolatility)} | Beneficio diversificazione: ${pct(stats.diversificationBenefit)} | Massimo drawdown: ${pct(stats.maxDrawdown)}`
     ], y);
-    if (mc) y = addTextLines(pdf, [`Monte Carlo: media finale ${money(mc.stats.meanFinal)}, mediana ${money(mc.stats.medianFinal)}, P5 ${money(mc.stats.p5)}, P95 ${money(mc.stats.p95)}, probabilità obiettivo ${pct(mc.stats.targetProbability)}.`], y + 2);
+    if (mc) y = addTextLines(pdf, [`Monte Carlo: media finale ${money(mc.stats.meanFinal)}, mediana ${money(mc.stats.medianFinal)}, P5 ${money(mc.stats.p5)}, P95 ${money(mc.stats.p95)}, probabilità obiettivo ${pct(mc.stats.targetProbability)}${settings.enableLombard ? `, probabilità margin call ${pct(mc.stats.marginCallProbability)}` : ""}.`], y + 2);
     y = addCanvasImage(pdf, "portfolioChart", "Grafico principale", y + 4);
     if (mc) {
       y = addCanvasImage(pdf, "monteCarloChart", "Bande Monte Carlo", y);

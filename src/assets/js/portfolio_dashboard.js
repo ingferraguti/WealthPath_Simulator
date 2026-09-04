@@ -116,7 +116,7 @@
     const box = byId("monteCarloKpis"); if (!box) return;
     if (!currentMonteCarlo) { box.innerHTML = `<div class="col-12 text-muted">${global.labels.ui.noMonteCarlo}</div>`; return; }
     const s = currentMonteCarlo.stats;
-    const items = [["Valore finale medio", money(s.meanFinal)], ["Valore finale mediano", money(s.medianFinal)], ["P5", money(s.p5)], ["P25", money(s.p25)], ["P75", money(s.p75)], ["P95", money(s.p95)], ["Probabilità obiettivo", pct(s.targetProbability)], ["Probabilità sotto versato", pct(s.lossProbability)], ["Capitale versato", money(s.totalContributed)], ["Prelievi medi", money(s.meanTotalWithdrawals)], ["Tasse medie da ribilanciamento", money(s.meanRebalanceTaxes)], ["Mediana - versato", money(s.medianMinusContributed)]];
+    const items = [["Valore finale medio", money(s.meanFinal)], ["Valore finale mediano", money(s.medianFinal)], ["P5", money(s.p5)], ["P25", money(s.p25)], ["P75", money(s.p75)], ["P95", money(s.p95)], ["Probabilità obiettivo", pct(s.targetProbability)], ["Probabilità sotto versato", pct(s.lossProbability)], ["Capitale versato", money(s.totalContributed)], ["Prelievi medi", money(s.meanTotalWithdrawals)], ["Tasse medie da ribilanciamento", money(s.meanRebalanceTaxes)], ["Risultato mediano rispetto ai versamenti", money(s.medianMinusContributed)]];
     if (currentSettings && currentSettings.enableLombard) items.splice(10, 0, ["Probabilità margin call", pct(s.marginCallProbability)], ["Interessi Lombard medi", money(s.meanLombardInterest)]);
     box.innerHTML = items.map(([label, value]) => `<div class="col-sm-6 col-lg-3 mb-3"><div class="border rounded p-3 h-100"><div class="small text-muted">${label}</div><div class="h5 mb-0">${value}</div></div></div>`).join("");
   }

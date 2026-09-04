@@ -21,9 +21,86 @@ const {
 
 const allocationLabel = (window.labels && window.labels.assets) || {};
 
-let initialInvestment = defaultInitialInvestment ?? 0;
-let monthlyContribution = defaultMonthlyContribution ?? 0;
-let timeHorizon = defaultTimeHorizonYears ?? 1; // Orizzonte temporale in anni
+const MAX_SIMULATION_YEARS = 50;
+
+function normalizeFiniteNumber(value, options = {}) {
+    const {
+        fallback = 0,
+        min = 0,
+        max = Number.MAX_SAFE_INTEGER,
+        integer = false,
+    } = options;
+    const parsedValue = Number(value);
+    const parsedFallback = Number(fallback);
+    const safeFallback = Number.isFinite(parsedFallback) ? parsedFallback : min;
+    const finiteValue = Number.isFinite(parsedValue) ? parsedValue : safeFallback;
+    const normalizedValue = integer ? Math.round(finiteValue) : finiteValue;
+
+    return Math.min(Math.max(normalizedValue, min), max);
+}
+
+function normalizeMoneyInput(value, fallback = 0) {
+    return normalizeFiniteNumber(value, { fallback, min: 0 });
+}
+
+function normalizeTimeHorizon(value, fallback = 1) {
+    return normalizeFiniteNumber(value, {
+        fallback,
+        min: 1,
+        max: MAX_SIMULATION_YEARS,
+        integer: true,
+    });
+}
+
+function safeDivide(numerator, denominator, fallback = 0) {
+    const safeNumerator = Number(numerator);
+    const safeDenominator = Number(denominator);
+
+    if (!Number.isFinite(safeNumerator) || !Number.isFinite(safeDenominator) || safeDenominator === 0) {
+        return fallback;
+    }
+
+    const result = safeNumerator / safeDenominator;
+    return Number.isFinite(result) ? result : fallback;
+}
+
+function safePercentage(numerator, denominator, fallback = 0) {
+    return safeDivide(numerator, denominator, fallback / 100) * 100;
+}
+
+function normalizeAllocationPercentages(rawAllocation = {}) {
+    const entries = Object.entries(rawAllocation);
+    if (!entries.length) {
+        return {};
+    }
+
+    const safeEntries = entries.map(([asset, value]) => [
+        asset,
+        normalizeFiniteNumber(value, { fallback: 0, min: 0, max: 100 }),
+    ]);
+    const total = safeEntries.reduce((sum, [, value]) => sum + value, 0);
+    const exactShares = total > 0
+        ? safeEntries.map(([asset, value]) => [asset, (value / total) * 100])
+        : safeEntries.map(([asset]) => [asset, 100 / safeEntries.length]);
+    const normalized = Object.fromEntries(exactShares.map(([asset, value]) => [asset, Math.floor(value)]));
+    let remainder = 100 - Object.values(normalized).reduce((sum, value) => sum + value, 0);
+
+    exactShares
+        .map(([asset, value]) => ({ asset, fraction: value - Math.floor(value) }))
+        .sort((a, b) => b.fraction - a.fraction)
+        .forEach(({ asset }) => {
+            if (remainder > 0) {
+                normalized[asset] += 1;
+                remainder -= 1;
+            }
+        });
+
+    return normalized;
+}
+
+let initialInvestment = normalizeMoneyInput(defaultInitialInvestment, 0);
+let monthlyContribution = normalizeMoneyInput(defaultMonthlyContribution, 0);
+let timeHorizon = normalizeTimeHorizon(defaultTimeHorizonYears, 1); // Orizzonte temporale in anni
 let rebalanceFrequencyPerYear = defaultRebalanceFrequencyPerYear ?? 1; // numero di ribilanciamenti per anno
 let rebalanceEveryMonths = rebalanceFrequencyPerYear === 0 ? 0 : Math.round(12 / rebalanceFrequencyPerYear); // ogni quanti mesi ribilanciare
 // Disabilitiamo per impostazione predefinita la simulazione Monte Carlo e gli scenari macro.
@@ -45,7 +122,7 @@ const assetClassSensitivities = { ...defaultAssetClassSensitivities };
 const macroTilt = { ...macroTiltConfig };
 const macroDrift = { ...macroDriftConfig };
 
-const allocation = { ...defaultAllocation };
+const allocation = normalizeAllocationPercentages(defaultAllocation);
 
 function getAllocationDisplayLabel(assetKey) {
     const baseLabel = allocationLabel[assetKey] || assetKey;

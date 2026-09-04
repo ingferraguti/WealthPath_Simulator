@@ -1,498 +1,386 @@
-// FUNZIONI CALCOLO PORTAFOGLIO
-// Questo file raccoglie funzioni di supporto per simulare l'evoluzione di un
-// portafoglio in base a contributi periodici e rendimenti mensili.
+(function (global) {
+  const V = global.WealthPathValidation;
 
-// Sequenza di rendimenti simulati utilizzata da calculateReturnsByMonth.
-// Viene generata al primo renderDashboard, poi riutilizzata finché non
-// viene chiesto esplicitamente di creare una nuova simulazione. Quando il
-// debug è disattivato, l'assegnazione avviene tramite un percorso GBM
-// monoscenario; in caso contrario vengono usati moltiplicatori deterministici.
-let gbmReturnsByMonth = {};
-let macroDataMissingLogged = false;
-// Parametri annualizzati (media e volatilità) per il GBM per asset class note.
-// Se un'asset class non compare, la simulazione ricadrà su un comportamento
-// deterministico, mantenendo l'attuale fallback mock/statico.
-const gbmParams = {
-    azionarioGlobale: { muAnn: 0.07, sigmaAnn: 0.15 },
-    obblGovEU10: { muAnn: 0.02, sigmaAnn: 0.05 },
-    obblGovEU3: { muAnn: 0.015, sigmaAnn: 0.03 },
-    obblEUInflLinked: { muAnn: 0.02, sigmaAnn: 0.04 },
-    obblCorporate: { muAnn: 0.03, sigmaAnn: 0.07 },
-    materiePrime: { muAnn: 0.04, sigmaAnn: 0.20 },
-    oro: { muAnn: 0.03, sigmaAnn: 0.18 }
-};
-const fixedReturnByAsset = {
-    azionarioGlobale: 1.0125,
-    obblGovEU10: 1.0035,
-    obblGovEU3: 1.0025,
-    obblEUInflLinked: 1.002,
-    obblCorporate: 1.0045,
-    materiePrime: 1.008,
-    oro: 1.006,
-};
-
-// Generatore Box-Muller per z ~ N(0,1), utilizzato dal modello GBM mensile.
-function rngNormal() {
-    const u1 = window.randomSeedManager?.random() ?? Math.random();
-    const u2 = window.randomSeedManager?.random() ?? Math.random();
-    const z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-    return z0;
-}
-
-// Calcola il moltiplicatore mensile GBM per l'asset indicato.
-// Se l'asset non è parametrizzato, restituisce null così che il chiamante
-// possa usare la logica deterministica esistente.
-function gbmMonthlyMultiplier(assetClass, options = {}) {
-    const params = gbmParams[assetClass];
-    if (!params) {
-        return null;
-    }
-
-    const { muAnn, sigmaAnn } = params;
-    const {
-        macroState,
-        sensitivitiesForAsset = {},
-        enableMacroScenario = false,
-        macroDriftConfig = {},
-    } = options || {};
-
-    const { inflationBeta = 0, policyRateBeta = 0, realRateBeta = 0 } = sensitivitiesForAsset || {};
-    const { inflationAlpha, policyRateAlpha, realRateAlpha } = {
-        ...defaultMacroDriftConfig,
-        ...macroDriftConfig,
+  function createPrng(seed) {
+    let state = (Number(seed) || 0) >>> 0;
+    return function random() {
+      state += 0x6D2B79F5;
+      let value = Math.imul(state ^ (state >>> 15), state | 1);
+      value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+      return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
     };
+  }
 
-    let adjustedMu = muAnn;
+  function normalRandom(random) {
+    const u1 = Math.max(random(), Number.EPSILON);
+    const u2 = Math.max(random(), Number.EPSILON);
+    return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  }
 
-    if (enableMacroScenario && macroState) {
-        const inflationImpact = (macroState.inflation ?? 0) * inflationBeta * inflationAlpha;
-        const policyRateImpact = (macroState.policyRate ?? 0) * policyRateBeta * policyRateAlpha;
-        const realRateValue = macroState.realRate ?? ((macroState.policyRate ?? 0) - (macroState.inflation ?? 0));
-        const realRateImpact = realRateValue * realRateBeta * realRateAlpha;
+  function createNormalGenerator(random) {
+    let spare = null;
+    return function nextNormal() {
+      if (spare !== null) {
+        const value = spare;
+        spare = null;
+        return value;
+      }
+      const u1 = Math.max(random(), Number.EPSILON);
+      const u2 = Math.max(random(), Number.EPSILON);
+      const radius = Math.sqrt(-2 * Math.log(u1));
+      const angle = 2 * Math.PI * u2;
+      spare = radius * Math.sin(angle);
+      return radius * Math.cos(angle);
+    };
+  }
 
-        adjustedMu += inflationImpact + policyRateImpact + realRateImpact;
+  function choleskyDecomposition(matrix) {
+    if (!Array.isArray(matrix) || !matrix.length || matrix.some((row) => !Array.isArray(row) || row.length !== matrix.length)) return null;
+    const size = matrix.length;
+    const lower = Array.from({ length: size }, () => new Float64Array(size));
+    for (let row = 0; row < size; row += 1) {
+      for (let column = 0; column <= row; column += 1) {
+        const raw = Number(matrix[row][column]);
+        const mirror = Number(matrix[column][row]);
+        if (!Number.isFinite(raw) || !Number.isFinite(mirror) || Math.abs(raw - mirror) > 1e-10) return null;
+        let residual = raw;
+        for (let index = 0; index < column; index += 1) residual -= lower[row][index] * lower[column][index];
+        if (row === column) {
+          if (residual <= 1e-12) return null;
+          lower[row][column] = Math.sqrt(residual);
+        } else {
+          lower[row][column] = residual / lower[column][column];
+        }
+      }
     }
+    return lower;
+  }
 
-    const dt = 1 / 12;
-    const z = rngNormal();
-    const logReturn = (adjustedMu - 0.5 * Math.pow(sigmaAnn, 2)) * dt + sigmaAnn * Math.sqrt(dt) * z;
-    return Math.exp(logReturn);
-}
-
-const defaultMacroTiltConfig = {
-    additiveScale: 0.05,
-    multiplicativeScale: 0.5,
-};
-
-const defaultMacroDriftConfig = {
-    inflationAlpha: 0.5,
-    policyRateAlpha: 0.5,
-    realRateAlpha: 0.25,
-};
-
-function applyMacroTilt(baseReturn, macroState, sensitivitiesForAsset = {}, macroTilt = {}) {
-    // Defensive fallback: if any of the inputs is missing or not a finite number, keep
-    // the original return. This preserves backward compatibility when the macro
-    // scenario is disabled or when legacy call sites don't provide sensitivities
-    // or macro tilt settings.
-    if (!macroState || !sensitivitiesForAsset || !macroTilt) {
-        return baseReturn;
+  function correlatedStandardNormals(nextNormal, cholesky) {
+    const independent = new Float64Array(cholesky.length);
+    const correlated = new Float64Array(cholesky.length);
+    for (let index = 0; index < independent.length; index += 1) independent[index] = nextNormal();
+    for (let row = 0; row < cholesky.length; row += 1) {
+      let value = 0;
+      for (let column = 0; column <= row; column += 1) value += cholesky[row][column] * independent[column];
+      correlated[row] = value;
     }
-    if (!isFinite(baseReturn)) {
-        return baseReturn;
+    return correlated;
+  }
+
+  function macroAdjustedAnnualReturn(asset, macroState, macroEnabled) {
+    const base = global.marketData.annualizedReturns[asset] || 0;
+    if (!macroEnabled || !macroState) return base;
+    const beta = global.marketData.assetClassSensitivities[asset] || {};
+    const config = global.marketData.macroDriftConfig;
+    const realRate = V.toNumber(macroState.realRate, V.toNumber(macroState.policyRate, 0) - V.toNumber(macroState.inflation, 0));
+    return base
+      + V.toNumber(beta.inflationBeta, 0) * V.toNumber(macroState.inflation, 0) * config.inflationAlpha
+      + V.toNumber(beta.policyRateBeta, 0) * V.toNumber(macroState.policyRate, 0) * config.policyRateAlpha
+      + V.toNumber(beta.realRateBeta, 0) * realRate * config.realRateAlpha;
+  }
+
+  function gbmMonthlyMultiplier(asset, options) {
+    options = options || {};
+    const sigma = global.marketData.annualizedVolatility[asset] || 0;
+    const mu = macroAdjustedAnnualReturn(asset, options.macroState, options.enableMacroScenario);
+    const z = Number.isFinite(options.standardNormal) ? options.standardNormal : normalRandom(options.random || Math.random);
+    const multiplier = Math.exp((mu - 0.5 * sigma * sigma) / 12 + sigma / Math.sqrt(12) * z);
+    return Number.isFinite(multiplier) && multiplier >= 0 ? multiplier : 1;
+  }
+
+  function fixedMonthlyMultiplier(asset) {
+    return global.marketData.fixedMonthlyMultipliers[asset] || Math.pow(1 + (global.marketData.annualizedReturns[asset] || 0), 1 / 12);
+  }
+
+  function rebalancePortfolio(portfolio, allocation) {
+    const total = Object.keys(portfolio).reduce((sum, asset) => sum + Math.max(0, V.toNumber(portfolio[asset], 0)), 0);
+    global.marketData.assetClasses.forEach((asset) => { portfolio[asset] = total * (V.toNumber(allocation[asset], 0) / 100); });
+    return portfolio;
+  }
+
+  function calculateContributionsSeries(initialInvestment, monthlyContribution, months) {
+    const initial = Math.max(0, V.toNumber(initialInvestment, 0));
+    const monthly = Math.max(0, V.toNumber(monthlyContribution, 0));
+    const count = Math.max(0, Math.round(V.toNumber(months, 0)));
+    return Array.from({ length: count + 1 }, (_, month) => initial + monthly * month);
+  }
+
+  function calculateContribValue(state, month) {
+    return Math.max(0, V.toNumber(state.initialInvestment, 0)) + Math.max(0, V.toNumber(state.monthlyContribution, 0)) * Math.max(0, Math.round(Number(month) || 0));
+  }
+
+  function totalPortfolioValue(portfolio) {
+    return portfolio.reduce((sum, value) => sum + Math.max(0, Number(value) || 0), 0);
+  }
+
+  function withdrawProRata(portfolio, costBasis, requestedAmount) {
+    const total = totalPortfolioValue(portfolio);
+    const withdrawal = Math.min(Math.max(0, Number(requestedAmount) || 0), total);
+    if (withdrawal === 0 || total === 0) return 0;
+    const proportion = withdrawal / total;
+    for (let assetIndex = 0; assetIndex < portfolio.length; assetIndex += 1) {
+      portfolio[assetIndex] *= 1 - proportion;
+      costBasis[assetIndex] *= 1 - proportion;
     }
+    return withdrawal;
+  }
 
-    // Extract betas: they describe how the asset reacts to macro factors. Defaults
-    // are zero to avoid accidental amplification when sensitivities are missing.
-    const { inflationBeta = 0, policyRateBeta = 0, realRateBeta = 0 } = sensitivitiesForAsset || {};
+  function rebalancePortfolioWithTaxes(portfolio, costBasis, weights, capitalGainsTaxRate) {
+    const total = totalPortfolioValue(portfolio);
+    if (total === 0) return 0;
+    const taxRate = Math.max(0, Math.min(1, Number(capitalGainsTaxRate) || 0));
+    let taxes = 0;
+    for (let assetIndex = 0; assetIndex < portfolio.length; assetIndex += 1) {
+      const currentValue = portfolio[assetIndex];
+      const targetValue = total * weights[assetIndex];
+      if (currentValue > targetValue && currentValue > 0) {
+        const sale = currentValue - targetValue;
+        const costBasisSold = costBasis[assetIndex] * (sale / currentValue);
+        taxes += Math.max(0, sale - costBasisSold) * taxRate;
+        costBasis[assetIndex] = Math.max(0, costBasis[assetIndex] - costBasisSold);
+      } else if (targetValue > currentValue) {
+        costBasis[assetIndex] += targetValue - currentValue;
+      }
+      portfolio[assetIndex] = targetValue;
+    }
+    const scaleAfterTaxes = Math.max(0, total - taxes) / total;
+    for (let assetIndex = 0; assetIndex < portfolio.length; assetIndex += 1) {
+      portfolio[assetIndex] *= scaleAfterTaxes;
+      costBasis[assetIndex] *= scaleAfterTaxes;
+    }
+    return taxes;
+  }
 
-    // Extract tilt scales with conservative defaults. The additive scale keeps the
-    // macro contribution small (a “tilt”, not a full re-pricing), while the
-    // multiplicative scale attenuates the effect further to avoid overpowering the
-    // base simulation.
-    const {
-        additiveScale = defaultMacroTiltConfig.additiveScale,
-        multiplicativeScale = defaultMacroTiltConfig.multiplicativeScale,
-    } = macroTilt || {};
+  function lombardCollateralValue(portfolio, usage) {
+    if (usage === "equity-leverage") return Math.max(0, Number(portfolio[0]) || 0);
+    return totalPortfolioValue(portfolio);
+  }
 
-    // Combine macro factors into a single signal. Inflation and rates influence
-    // returns differently across asset classes; multiplying by betas captures that
-    // directional sensitivity while remaining linear and easy to tune.
-    const signal =
-        (macroState?.inflation ?? 0) * inflationBeta +
-        (macroState?.policyRate ?? 0) * policyRateBeta +
-        (macroState?.realRate ?? 0) * realRateBeta;
+  function lombardLtv(debt, portfolio, usage) {
+    if (debt <= 0) return 0;
+    const collateral = lombardCollateralValue(portfolio, usage);
+    return collateral > 0 ? debt / collateral : Infinity;
+  }
 
-    // Translate the macro signal into a small additive tilt. This is intentionally
-    // lightweight to avoid double-counting returns already produced by the base
-    // model (including inflation effects baked into certain asset classes).
-    const additiveTilt = signal * additiveScale;
-
-    // Apply the tilt as a mild multiplicative adjustment. Taxes/inflation can erode
-    // returns, while favorable macro winds can slightly enhance them; scaling keeps
-    // this effect subtle and easy to calibrate.
-    const adjusted = baseReturn * (1 + additiveTilt * multiplicativeScale);
-
-    return adjusted;
-}
-
-function getPortfolioState(overrides = {}) {
+  function prepareSimulation(options) {
+    options = options || {};
+    const suppliedRandom = typeof options.random === "function" ? options.random : null;
+    const settings = V.sanitizeSettings(options);
+    const validation = V.validateSettings(settings);
+    if (!validation.valid) throw new Error(validation.errors.join(" "));
+    const assets = global.marketData.assetClasses.slice();
+    const assetCount = assets.length;
+    const months = settings.timeHorizonYears * 12;
+    const weights = Float64Array.from(assets, (asset) => V.toNumber(settings.allocation[asset], 0) / 100);
+    const volatilities = Float64Array.from(assets, (asset) => Math.max(0, V.toNumber(global.marketData.annualizedVolatility[asset], 0)));
+    const fixedMultipliers = Float64Array.from(assets, fixedMonthlyMultiplier);
+    const macroSeries = settings.enableMacroAdjustments ? global.buildMacroScenario(settings.selectedMacroScenario, months) : [];
+    const monthlyDrifts = new Float64Array((months + 1) * assetCount);
+    for (let month = 1; month <= months; month += 1) {
+      for (let assetIndex = 0; assetIndex < assetCount; assetIndex += 1) {
+        monthlyDrifts[month * assetCount + assetIndex] = macroAdjustedAnnualReturn(assets[assetIndex], macroSeries[month] || null, settings.enableMacroAdjustments);
+      }
+    }
+    const correlationMatrix = global.marketData.correlationMatrix;
+    const isCorrelationMatrix = Array.isArray(correlationMatrix)
+      && correlationMatrix.length === assetCount
+      && correlationMatrix.every((row, rowIndex) => Array.isArray(row)
+        && row.length === assetCount
+        && row.every((value) => Number.isFinite(Number(value)) && Number(value) >= -1 && Number(value) <= 1)
+        && Math.abs(Number(row[rowIndex]) - 1) < 1e-10);
+    const correlationCholesky = isCorrelationMatrix ? choleskyDecomposition(correlationMatrix) : null;
+    if (!correlationCholesky) throw new Error("La matrice di correlazione deve essere simmetrica e definita positiva.");
     return {
-        allocation,
-        initialInvestment,
-        monthlyContribution,
-        timeHorizon,
-        rebalanceFrequencyPerYear,
-        rebalanceEveryMonths,
-        returnFunctions,
-        priceRatios,
-        gbmReturnsByMonth,
-        macroPhases,
-        macroByMonth,
-        useFixedReturnMode,
-        assetClassSensitivities,
-        macroTilt,
-        macroDrift,
-        enableMacroScenario,
-        enableMacroAdjustments,
-        selectedMacroScenario,
-        ...overrides,
+      settings,
+      suppliedRandom,
+      assets,
+      assetCount,
+      months,
+      weights,
+      volatilities,
+      fixedMultipliers,
+      monthlyDrifts,
+      macroSeries,
+      correlationCholesky,
+      rebalanceEveryMonths: settings.rebalanceFrequencyPerYear > 0 ? Math.max(1, Math.round(12 / settings.rebalanceFrequencyPerYear)) : 0
     };
-}
+  }
 
-// Calcola il capitale totale dopo "i" mesi sommando al capitale iniziale la
-// contribuzione mensile utilizzando i valori forniti nello stato.
-function calculateContribValue(state, i) {
-        const { initialInvestment, monthlyContribution } = state;
-        return initialInvestment + (monthlyContribution * i);
-}
-
-
-// Distribuisce la contribuzione mensile in base all'allocazione percentuale
-// dell'asset class specificata, leggendo i valori dallo stato fornito.
-function dumbMCA (state, assetClass){
-        const { allocation, monthlyContribution } = state;
-        return monthlyContribution * (allocation[assetClass] / 100);
-}
-
-
-
-/* calculateInvestmentComponents
-   Suddivide l'investimento iniziale fra le asset class indicate in `allocation`.
-   Controlla che la somma delle percentuali sia esattamente 100 e restituisce un
-   array di oggetti { assetClass, investment } che rappresentano il portafoglio
-   allocato. Può essere richiamata sia per inizializzare sia per ribilanciare.
-*/
-function calculateInvestmentComponents(allocation, initialInvestment) {
-    // Verifica che la somma delle allocazioni sia pari a 100
-    const totalAllocation = Object.values(allocation).reduce((sum, percentage) => sum + percentage, 0);
-    if (totalAllocation !== 100) {
-        throw new Error("La somma delle allocazioni deve essere pari a 100.");
+  function simulateNominalPath(prepared, random) {
+    const settings = prepared.settings;
+    const portfolio = new Float64Array(prepared.assetCount);
+    const costBasis = new Float64Array(prepared.assetCount);
+    for (let assetIndex = 0; assetIndex < prepared.assetCount; assetIndex += 1) {
+      portfolio[assetIndex] = settings.initialInvestment * prepared.weights[assetIndex];
+      costBasis[assetIndex] = portfolio[assetIndex];
     }
-
-    // Creazione del portafoglio con le allocazioni calcolate
-    const portafoglio = Object.entries(allocation).map(([assetClass, percentage]) => ({
-        assetClass: assetClass,
-        investment: (percentage / 100) * initialInvestment
-    }));
-
-    return portafoglio;
-}
-
-
-// Genera una sequenza congelata di rendimenti mensili per ogni asset class.
-// Ad ogni renderDashboard viene creato un singolo percorso GBM completo per gli
-// asset parametrizzati, così che calculatePortfolioValue condivida lo stesso
-// scenario stocastico in tutte le chiamate. Gli asset non parametrizzati
-// continuano a usare il fallback deterministico (mock) per mantenere la
-// compatibilità con il comportamento precedente e per future estensioni
-// multi-scenario.
-function generateSimulatedReturns(state) {
-    const { allocation, timeHorizon, useFixedReturnMode } = state;
-    const macroByMonth = state.macroByMonth;
-    const sensitivities = state.assetClassSensitivities || {};
-    const macroDrift = state.macroDrift || defaultMacroDriftConfig;
-    const enableMacroScenario = state.enableMacroScenario ?? state.enableMacroAdjustments ?? false;
-    const numeroMesi = timeHorizon * 12;
-    const simulatedReturns = [];
-
-    for (let mese = 0; mese <= numeroMesi; mese++) {
-        simulatedReturns[mese] = {};
-
-        const macroState = enableMacroScenario ? macroByMonth?.[mese] : undefined;
-
-        Object.keys(allocation).forEach(assetClass => {
-            if (useFixedReturnMode) {
-                simulatedReturns[mese][assetClass] = fixedReturnByAsset[assetClass] ?? 1;
-            } else {
-                // Prima tentiamo il GBM: se esistono parametri generiamo un moltiplicatore
-                // stocastico; altrimenti applichiamo il vecchio comportamento deterministico
-                // (mock) per mantenere coerenza con asset non coperti.
-                const sensitivitiesForAsset = enableMacroScenario ? sensitivities[assetClass] : undefined;
-                const gbmOptions =
-                    enableMacroScenario && macroState
-                        ? { macroState, sensitivitiesForAsset, enableMacroScenario, macroDriftConfig: macroDrift }
-                        : undefined;
-                const gbmValue = gbmOptions
-                    ? gbmMonthlyMultiplier(assetClass, gbmOptions)
-                    : gbmMonthlyMultiplier(assetClass);
-                if (gbmValue !== null && gbmValue !== undefined) {
-                    simulatedReturns[mese][assetClass] = gbmValue;
-                } else if (assetClass === 'azionarioGlobale') {
-                    simulatedReturns[mese][assetClass] = 1.01;
-                } else {
-                    simulatedReturns[mese][assetClass] = 1.0;
-                }
-            }
-        });
+    const lombardEnabled = settings.enableLombard && settings.lombardLeverage > 0;
+    const initialLoan = lombardEnabled ? settings.initialInvestment * settings.lombardLeverage : 0;
+    let lombardDebt = initialLoan;
+    let lombardCashReserve = 0;
+    if (lombardEnabled && settings.lombardUsage === "liquidity") {
+      lombardCashReserve = initialLoan;
+    } else if (lombardEnabled && settings.lombardUsage === "equity-leverage") {
+      portfolio[0] += initialLoan;
+      costBasis[0] += initialLoan;
+    } else if (lombardEnabled) {
+      for (let assetIndex = 0; assetIndex < prepared.assetCount; assetIndex += 1) {
+        const loanAllocation = initialLoan * prepared.weights[assetIndex];
+        portfolio[assetIndex] += loanAllocation;
+        costBasis[assetIndex] += loanAllocation;
+      }
     }
-
-    gbmReturnsByMonth = simulatedReturns;
-    state.gbmReturnsByMonth = simulatedReturns;
-}
-
-
-/* calculateReturnsByMonth
-   Riceve un indice di mese e un array di oggetti { assetClass, calculateReturn }
-   e costruisce i rendimenti chiamando `calculateReturn(mese)` per ogni asset
-   class. I valori prodotti alimentano calculatePortfolioReturns.
-*/
-function calculateReturnsByMonth(state, mese, returnFunctions) {
-    // Calcola i rendimenti per ciascun asset class utilizzando le funzioni fornite
-    const returnsByMonth = state.gbmReturnsByMonth || {};
-    const returnFunctionsToUse = returnFunctions || state.returnFunctions || [];
-    const macroByMonth = state.macroByMonth;
-    const sensitivities = state.assetClassSensitivities || {};
-    const macroTilt = state.macroTilt;
-    const enableMacroAdjustments = state.enableMacroScenario ?? state.enableMacroAdjustments ?? false;
-    const macroState = enableMacroAdjustments ? macroByMonth?.[mese] : undefined;
-
-    if (enableMacroAdjustments && !macroState && !macroDataMissingLogged) {
-        console.debug("Macro scenario non disponibile: i rendimenti verranno calcolati senza aggiustamenti macro.");
-        macroDataMissingLogged = true;
-    }
-
-    const returns = returnFunctionsToUse.map(func => {
-        const { assetClass, calculateReturn } = func;
-        const sensitivitiesForAsset = sensitivities[assetClass];
-
-        // Calcola il rendimento per l'asset class utilizzando il mese come input
-        const simulatedReturn = returnsByMonth?.[mese]?.[assetClass];
-        const baseReturn =
-            simulatedReturn !== undefined
-                ? simulatedReturn
-                : calculateReturn(mese, { macroState, sensitivitiesForAsset, baseReturn: simulatedReturn });
-
-        const returnValue = enableMacroAdjustments
-            ? applyMacroTilt(baseReturn, macroState, sensitivitiesForAsset, macroTilt)
-            : baseReturn;
-
-        return {
-            assetClass: assetClass,
-            return: returnValue
-        };
-    });
-
-    return returns;
-}
-
-
-
-
-
-
-
-/* addMonthlyContribution
-   Aggiunge la contribuzione mensile agli asset già presenti in `portafoglio`.
-   La quota da distribuire su ogni asset class dipende dall'allocazione
-   percentuale definita in `allocation`. Lavora in-place aggiornando
-   direttamente le proprietà `investment`.
-*/
-function addMonthlyContribution(portafoglio, allocation, monthlyContribution) {
-    // Calcola la somma totale delle allocazioni nell'oggetto allocation
-    const totalAllocation = Object.values(allocation).reduce((sum, percentage) => sum + percentage, 0);
-    if (totalAllocation !== 100) {
-        throw new Error("La somma delle allocazioni deve essere pari a 100.");
-    }
-
-    // Modifica direttamente il valore di investment nel portafoglio
-    portafoglio.forEach(asset => {
-        // Trova la percentuale di allocazione per l'asset class
-        const assetAllocation = allocation[asset.assetClass] || 0;
-
-        // Calcola la quota mensile da aggiungere all'investment
-        const contribution = (assetAllocation / 100) * monthlyContribution;
-
-        // Aggiorna direttamente il valore di investment
-        asset.investment += contribution;
-    });
-
-    return portafoglio; // Restituisce il portafoglio aggiornato (modificato in-place)
-}
-
-
-
-
-
-
-
-
-
-
-
-/* calculatePortfolioReturns
-   Combina il portafoglio corrente con i rendimenti calcolati per ciascuna
-   asset class. Crea un nuovo array in cui `investment` è aggiornato
-   moltiplicando il capitale attuale per il rendimento del mese.
-
-// Esempio di utilizzo
-const portafoglio = [
-    { assetClass: "Azioni", investment: 5000 },
-    { assetClass: "Obbligazioni", investment: 3000 },
-    { assetClass: "Oro", investment: 1000 },
-    { assetClass: "Cash", investment: 1000 }
-];
-
-const returns = [
-    { assetClass: "Azioni", return: 0.08 },  // 8% di rendimento
-    { assetClass: "Obbligazioni", return: 0.03 }, // 3% di rendimento
-    { assetClass: "Oro", return: 0.05 }, // 5% di rendimento
-    { assetClass: "Cash", return: 0.01 } // 1% di rendimento
-];
-
-// Calcolo del portafoglio con i rendimenti
-const updatedPortafoglio = calculatePortfolioReturns(portafoglio, returns);
-
-
-ritorno:
-[
-    { assetClass: "Azioni", investment: 5000, rendimentoTotale: "400.00" },
-    { assetClass: "Obbligazioni", investment: 3000, rendimentoTotale: "90.00" },
-    { assetClass: "Oro", investment: 1000, rendimentoTotale: "50.00" },
-    { assetClass: "Cash", investment: 1000, rendimentoTotale: "10.00" }
-]
-
-*/
-
-function calculatePortfolioReturns(portafoglio, returns) {
-    // Creazione di un nuovo portafoglio con i rendimenti calcolati
-    const updatedPortafoglio = portafoglio.map(asset => {
-        // Trova il rendimento corrispondente per l'asset class
-        const assetReturn = returns.find(r => r.assetClass === asset.assetClass);
-        if (!assetReturn) {
-            throw new Error(`Rendimento non trovato per l'asset class: ${asset.assetClass}`);
+    const nominalValues = new Float64Array(prepared.months + 1);
+    const realValues = settings.enableMacroAdjustments ? new Float64Array(prepared.months + 1) : null;
+    const withdrawals = new Float64Array(prepared.months + 1);
+    const rebalanceTaxes = new Float64Array(prepared.months + 1);
+    const lombardDebts = new Float64Array(prepared.months + 1);
+    const lombardCashReserves = new Float64Array(prepared.months + 1);
+    const lombardCollateral = new Float64Array(prepared.months + 1);
+    const lombardLtvs = new Float64Array(prepared.months + 1);
+    const lombardInterests = new Float64Array(prepared.months + 1);
+    const marginCalls = new Uint8Array(prepared.months + 1);
+    lombardDebts[0] = lombardDebt;
+    lombardCashReserves[0] = lombardCashReserve;
+    lombardCollateral[0] = lombardEnabled ? lombardCollateralValue(portfolio, settings.lombardUsage) : 0;
+    lombardLtvs[0] = lombardEnabled ? lombardLtv(lombardDebt, portfolio, settings.lombardUsage) : 0;
+    if (lombardEnabled && lombardLtvs[0] >= settings.lombardMarginCallLtv) marginCalls[0] = 1;
+    nominalValues[0] = totalPortfolioValue(portfolio) + lombardCashReserve - lombardDebt;
+    if (realValues) realValues[0] = nominalValues[0];
+    const nextNormal = createNormalGenerator(random || prepared.suppliedRandom || createPrng(settings.seed));
+    let cumulativeInflation = 1;
+    let marginCallMonth = marginCalls[0] ? 0 : null;
+    for (let month = 1; month <= prepared.months; month += 1) {
+      let total = 0;
+      for (let assetIndex = 0; assetIndex < prepared.assetCount; assetIndex += 1) {
+        const contribution = settings.monthlyContribution * prepared.weights[assetIndex];
+        portfolio[assetIndex] += contribution;
+        costBasis[assetIndex] += contribution;
+        total += portfolio[assetIndex];
+      }
+      const monthlyWithdrawal = settings.enableRetirement ? total * settings.annualWithdrawalRate / 12 : 0;
+      const reserveWithdrawal = lombardEnabled && settings.lombardUsage === "liquidity"
+        ? Math.min(lombardCashReserve, monthlyWithdrawal)
+        : 0;
+      lombardCashReserve -= reserveWithdrawal;
+      const withdrawn = reserveWithdrawal + withdrawProRata(portfolio, costBasis, monthlyWithdrawal - reserveWithdrawal);
+      withdrawals[month] = withdrawals[month - 1] + withdrawn;
+      if (prepared.rebalanceEveryMonths > 0 && month % prepared.rebalanceEveryMonths === 0) {
+        const taxes = rebalancePortfolioWithTaxes(portfolio, costBasis, prepared.weights, settings.capitalGainsTaxRate);
+        rebalanceTaxes[month] = rebalanceTaxes[month - 1] + taxes;
+      } else {
+        rebalanceTaxes[month] = rebalanceTaxes[month - 1];
+      }
+      const shocks = settings.fixedReturnsMode ? null : correlatedStandardNormals(nextNormal, prepared.correlationCholesky);
+      total = 0;
+      for (let assetIndex = 0; assetIndex < prepared.assetCount; assetIndex += 1) {
+        let multiplier = prepared.fixedMultipliers[assetIndex];
+        if (!settings.fixedReturnsMode) {
+          const sigma = prepared.volatilities[assetIndex];
+          const mu = prepared.monthlyDrifts[month * prepared.assetCount + assetIndex];
+          multiplier = Math.exp((mu - 0.5 * sigma * sigma) / 12 + sigma / Math.sqrt(12) * shocks[assetIndex]);
         }
+        portfolio[assetIndex] *= Number.isFinite(multiplier) && multiplier >= 0 ? multiplier : 1;
+        total += Number.isFinite(portfolio[assetIndex]) ? portfolio[assetIndex] : 0;
+      }
+      const monthlyInterest = lombardEnabled ? lombardDebt * settings.lombardInterestRate / 12 : 0;
+      lombardDebt += monthlyInterest;
+      lombardDebts[month] = lombardDebt;
+      lombardCashReserves[month] = lombardCashReserve;
+      lombardCollateral[month] = lombardEnabled ? lombardCollateralValue(portfolio, settings.lombardUsage) : 0;
+      lombardLtvs[month] = lombardEnabled ? lombardLtv(lombardDebt, portfolio, settings.lombardUsage) : 0;
+      if (lombardEnabled && lombardLtvs[month] >= settings.lombardMarginCallLtv) {
+        marginCalls[month] = 1;
+        if (marginCallMonth === null) marginCallMonth = month;
+      }
+      lombardInterests[month] = lombardInterests[month - 1] + monthlyInterest;
+      nominalValues[month] = total + lombardCashReserve - lombardDebt;
+      if (realValues) {
+        const inflation = Math.max(-0.999999, V.toNumber(prepared.macroSeries[month] && prepared.macroSeries[month].inflation, 0));
+        cumulativeInflation *= Math.pow(1 + inflation, 1 / 12);
+        realValues[month] = nominalValues[month] / cumulativeInflation;
+      }
+    }
+    return {
+      nominalValues,
+      realValues,
+      withdrawals,
+      rebalanceTaxes,
+      lombardDebts,
+      lombardCashReserves,
+      lombardCollateral,
+      lombardLtvs,
+      lombardInterests,
+      marginCalls,
+      finalValue: nominalValues[prepared.months],
+      finalRealValue: realValues ? realValues[prepared.months] : null,
+      totalWithdrawals: withdrawals[prepared.months],
+      totalRebalanceTaxes: rebalanceTaxes[prepared.months],
+      lombardEnabled,
+      lombardUsage: settings.lombardUsage,
+      initialLombardLoan: initialLoan,
+      totalLombardInterest: lombardInterests[prepared.months],
+      marginCallOccurred: marginCallMonth !== null,
+      marginCallMonth
+    };
+  }
 
-        // Calcola il rendimento totale per l'asset
-        const rendimentoTotale = asset.investment * assetReturn.return;
-		
+  function simulatePortfolioPath(options) {
+    const prepared = prepareSimulation(options);
+    const path = simulateNominalPath(prepared, prepared.suppliedRandom || createPrng(prepared.settings.seed));
+    return {
+      nominalValues: Array.from(path.nominalValues),
+      contributions: calculateContributionsSeries(prepared.settings.initialInvestment, prepared.settings.monthlyContribution, prepared.months),
+      withdrawals: Array.from(path.withdrawals),
+      rebalanceTaxes: Array.from(path.rebalanceTaxes),
+      lombardDebts: Array.from(path.lombardDebts),
+      lombardCashReserves: Array.from(path.lombardCashReserves),
+      lombardCollateral: Array.from(path.lombardCollateral),
+      lombardLtvs: Array.from(path.lombardLtvs),
+      lombardInterests: Array.from(path.lombardInterests),
+      marginCalls: Array.from(path.marginCalls),
+      realValues: path.realValues ? Array.from(path.realValues) : [],
+      macroSeries: prepared.macroSeries,
+      finalValue: path.finalValue,
+      finalRealValue: path.finalRealValue,
+      totalWithdrawals: path.totalWithdrawals,
+      totalRebalanceTaxes: path.totalRebalanceTaxes,
+      lombardEnabled: path.lombardEnabled,
+      lombardUsage: path.lombardUsage,
+      initialLombardLoan: path.initialLombardLoan,
+      totalLombardInterest: path.totalLombardInterest,
+      marginCallOccurred: path.marginCallOccurred,
+      marginCallMonth: path.marginCallMonth
+    };
+  }
 
-        return {
-            ...asset,
-            investment: rendimentoTotale // Arrotonda a due decimali
-        };
-    });
+  function calculatePortfolioValue(state, month) {
+    const months = Math.max(0, Math.round(Number(month) || 0));
+    const result = simulatePortfolioPath({ ...state, timeHorizonYears: Math.max(1, Math.ceil(months / 12)) });
+    return result.nominalValues[Math.min(months, result.nominalValues.length - 1)] || 0;
+  }
 
-    return updatedPortafoglio;
-}
+  function validateAllocation(allocation) { return V.validateAllocation(allocation); }
 
-function calculateTotalInvestment(portafoglio) {
-    // Utilizza reduce per sommare tutti gli investimenti
-	console.log(portafoglio.reduce((sum, asset) => sum + asset.investment, 0));
-    return portafoglio.reduce((sum, asset) => sum + asset.investment, 0);
-   
-}
-
-
-// Simula mese per mese l'andamento del portafoglio applicando contributi e rendimenti
-// calcolati da `returnFunctions` presenti nello stato fornito.
-function calculatePortfolioValue(state, mese) {
-
-        const { allocation, initialInvestment, monthlyContribution, returnFunctions, rebalanceEveryMonths } = state;
-
-        let portafoglio = calculateInvestmentComponents(allocation, initialInvestment);
-
-        if (mese <= 0) {
-                return initialInvestment;
-        }
-
-        for (let i = 1; i <= mese; i++)  {
-                //rendimenti di questo mese
-                let returns = calculateReturnsByMonth(state, i, returnFunctions);
-
-                portafoglio = addMonthlyContribution(portafoglio, allocation, monthlyContribution);
-
-                // Il ribilanciamento è opzionale: la frequenza, espressa in mesi, proviene da state.rebalanceEveryMonths
-                if (rebalanceEveryMonths > 0 && i > 0 && i % rebalanceEveryMonths === 0) {
-                        const total = calculateTotalInvestment(portafoglio);
-                        portafoglio = calculateInvestmentComponents(allocation, total);
-                }
-
-                //applichiamo i rendimenti al portafoglio
-                portafoglio = calculatePortfolioReturns(portafoglio, returns)
-
-
-        }
-	return calculateTotalInvestment(portafoglio);
-	
-}
-
-
-
-
-
-// Funzione per calcolare il valore del portafoglio considerando le performance precedenti
-// calculatePortfolioValue( MESE )
-// Variante semplificata che separa componente azionaria, oro e obbligazionaria
-// e applica i rapporti di prezzo mensili alla sola parte azionaria.
-
-function calculatePortfolioValue2(state, i) {
-
-                const { allocation, initialInvestment, monthlyContribution, priceRatios } = state;
-
-                // Calcola il valore iniziale della parte azionaria del portafoglio in base all'allocazione azionaria
-                let azionariaValue = initialInvestment * (allocation['azionarioGlobale'] / 100);
-		
-		let oroValue = initialInvestment * (allocation['oro'] / 100);
-	
-		// Calcola il valore iniziale della parte obbligazionaria del portafoglio in base all'allocazione obbligazionaria
-		let obbligazionariaValue = initialInvestment * ((100 - (allocation['azionarioGlobale']+allocation['oro'])) / 100);
-	
-		// Calcola il valore totale iniziale del portafoglio come somma delle parti azionaria e obbligazionaria
-		//let totalValue = azionariaValue + obbligazionariaValue;
-		let totalValue = initialInvestment;
-	
-	if (i<=0){
-	
-		return initialInvestment;
-	}
-    
-	else{
-		
-                        // Itera fino al mese 'i' per calcolare il valore del portafoglio mese per mese
-                        for (let month = 0; month <= i; month++) {
-		
-			// Aggiorna il valore della parte azionaria del portafoglio applicando il rendimento del mese corrente
-			azionariaValue *= priceRatios[month % priceRatios.length];
-		
-			// Calcola il contributo mensile per la parte azionaria del portafoglio, tenendo conto del rendimento del mese corrente
-			let monthlyAzionariaContribution = monthlyContribution * (allocation['azionarioGlobale'] / 100) * priceRatios[month % priceRatios.length];
-        
-			// Calcola il contributo mensile per la parte obbligazionaria del portafoglio
-			let monthlyObbligazionariaContribution = monthlyContribution * ((100 - allocation['azionarioGlobale']) / 100);
-       
-			// Aggiorna il valore totale del portafoglio sommando i valori azionari, obbligazionari e i contributi mensili
-			totalValue = azionariaValue + obbligazionariaValue + monthlyAzionariaContribution + monthlyObbligazionariaContribution;
-
-			// Accumula i contributi mensili sulle rispettive componenti per il mese successivo
-			azionariaValue += monthlyAzionariaContribution;
-			obbligazionariaValue += monthlyObbligazionariaContribution
-		}
-	
-		
-		
-	}
-    
-    // Ritorna il valore totale del portafoglio dopo aver applicato tutti i rendimenti e contributi fino al mese 'i'
-    return totalValue;
-}
+  global.createPrng = createPrng;
+  global.rngNormal = function () { return normalRandom(global.randomSeedManager ? global.randomSeedManager.random : Math.random); };
+  global.normalRandom = normalRandom;
+  global.createNormalGenerator = createNormalGenerator;
+  global.choleskyDecomposition = choleskyDecomposition;
+  global.correlatedStandardNormals = correlatedStandardNormals;
+  global.gbmMonthlyMultiplier = gbmMonthlyMultiplier;
+  global.fixedMonthlyMultiplier = fixedMonthlyMultiplier;
+  global.rebalancePortfolio = rebalancePortfolio;
+  global.calculateContributionsSeries = calculateContributionsSeries;
+  global.calculateContribValue = calculateContribValue;
+  global.withdrawProRata = withdrawProRata;
+  global.rebalancePortfolioWithTaxes = rebalancePortfolioWithTaxes;
+  global.lombardCollateralValue = lombardCollateralValue;
+  global.lombardLtv = lombardLtv;
+  global.prepareSimulation = prepareSimulation;
+  global.simulateNominalPath = simulateNominalPath;
+  global.simulatePortfolioPath = simulatePortfolioPath;
+  global.calculatePortfolioValue = calculatePortfolioValue;
+  global.validateAllocation = validateAllocation;
+})(window);

@@ -1,0 +1,46 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  simulation-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          find src/assets/js -type f -name '*.js' ! -name '*.min.js' -print0 | xargs -0 -n1 node --check
+          node --check tests/run-simulation-tests.mjs
+
+      - name: Run simulation tests
+        run: node tests/run-simulation-tests.mjs
+
+      - name: Run browser regression
+        shell: bash
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 --directory src > /tmp/wealthpath-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          server_ready=false
+          for attempt in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:8765/ > /dev/null; then
+              server_ready=true
+              break
+            fi
+            sleep 0.25
+          done
+          test "$server_ready" = true
+          chrome_bin="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          test -n "$chrome_bin"
+          "$chrome_bin" --headless=new --no-sandbox --disable-gpu --virtual-time-budget=20000 \
+            --dump-dom 'http://127.0.0.1:8765/?debug=1&browserTest=1' > /tmp/wealthpath-browser.html
+          grep -Eq 'data-simulation-tests="passed:[0-9]+"' /tmp/wealthpath-browser.html
+          grep -q 'data-browser-regression="passed:5"' /tmp/wealthpath-browser.html

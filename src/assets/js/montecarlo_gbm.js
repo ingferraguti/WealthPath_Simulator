@@ -1,360 +1,182 @@
-/**
- * =============================================================================
- *  Monte Carlo GBM per simulazione di portafoglio
- * =============================================================================
- *
- * SCOPO
- * -----
- * Questo modulo fornisce una piccola "API interna" per eseguire simulazioni
- * Monte Carlo di un portafoglio usando un modello GBM (Geometric Brownian
- * Motion) per i rendimenti delle singole asset class.
- * Tutti i parametri vengono passati come
- * argomenti e il modulo non dipende da variabili globali esterne.
- *
- *
- * COME VIENE USATO
- * ----------------------------
- * 1) incluso nel index.html
- *
- *    <script src="montecarlo_gbm.js"></script>
- *
- * 2) chiamata:
- *
- *    const mcResult = runMonteCarloGBM({
- *      allocation: allocation,                 // oggetto che già usi, es: { azionarioGlobale: 30, ... }
- *      initialInvestment: initialInvestment,   // variabile globale che già usi
- *      monthlyContribution: monthlyContribution,
- *      timeHorizonYears: timeHorizon,          // orizzonte in anni della tua dashboard
- *      rebalanceEveryMonths: 12,               // ribilanciamento annuale (puoi cambiarlo o metterlo a 0 per disattivarlo)
- *      nScenarios: 500                         // numero di scenari Monte Carlo (es. 200–1000)
- *    });
- *
- * 4) Il risultato "mcResult" contiene:
- *
- *    mcResult.paths        -> array di scenari, uno per simulazione:
- *                             paths[i] è un array [valoreMese0, valoreMese1, ..., valoreMeseN]
- *
- *    mcResult.finalValues  -> array dei valori finali (uno per scenario)
- *
- *    mcResult.stats        -> oggetto con statistiche riassuntive:
- *                             {
- *                               meanFinal,    // media dei valori finali
- *                               medianFinal,  // mediana
- *                               p5,           // 5° percentile (scenario pessimistico)
- *                               p25,          // 25° percentile
- *                               p75,          // 75° percentile
- *                               p95           // 95° percentile (scenario molto positivo)
- *                             }
- *
- *
- * ESEMPI DI UTILIZZO 
- * ----------------------------------
- * Esempio 1: mostrare i risultati in alcuni box informativi
- *
- *    const mc = runMonteCarloGBM({
- *      allocation,
- *      initialInvestment,
- *      monthlyContribution,
- *      timeHorizonYears: timeHorizon,
- *      rebalanceEveryMonths: 12,
- *      nScenarios: 500
- *    });
- *
- *    // Puoi usare mc.stats per popolare box nella UI:
- *    // - "Valore finale mediano (Monte Carlo)": mc.stats.medianFinal
- *    // - "Scenario pessimistico (5° percentile)": mc.stats.p5
- *    // - "Scenario ottimistico (95° percentile)": mc.stats.p95
- *
- *
- * Esempio 2: calcolare la probabilità di raggiungere un obiettivo
- *
- *    const target = 250000; // ad esempio, obiettivo a 20 anni
- *    const successes = mc.finalValues.filter(v => v >= target).length;
- *    const probability = (successes / mc.finalValues.length) * 100;
- *    // probability = % di scenari in cui il portafoglio supera il target
- *
- *
- * Esempio 3: usare le "paths" per creare bande di confidenza nel grafico
- *
- *    - Puoi costruire, per ogni mese, il 5° / 50° / 95° percentile dei valori
- *      su tutti gli scenari, ottenendo tre serie:
- *      * serie P5  (banda bassa)
- *      * serie P50 (mediana)
- *      * serie P95 (banda alta)
- *    - Queste serie possono essere mostrate in un nuovo grafico lineare
- *      (Chart.js) come "area di incertezza" attorno al percorso mediano.
- *
- *
- * NOTA SUL MODELLO GBM
- * --------------------
- * Per ogni asset class il modello usa un GBM classico:
- *
- *    logReturn = (muAnn - 0.5 * sigmaAnn^2) * dt + sigmaAnn * sqrt(dt) * Z
- *
- * dove:
- *  - muAnn     = rendimento medio atteso annuo dell'asset
- *  - sigmaAnn  = volatilità annua dell'asset
- *  - dt        = 1/12 (passo temporale di un mese)
- *  - Z         = variabile casuale ~ N(0,1)
- *
- * Il moltiplicatore mensile è:
- *
- *    multiplier = exp(logReturn)
- *
- * che viene applicato al valore dell'asset per quel mese.
- *
- * Il portafoglio:
- *  - parte da initialInvestment ripartito secondo allocation,
- *  - aggiunge monthlyContribution ogni mese secondo allocation,
- *  - opzionalmente ribilancia ogni X mesi,
- *  - applica i rendimenti GBM per ciascuna asset class.
- *
- * =============================================================================
- *  IMPLEMENTAZIONE
- * =============================================================================
- */
+(function (global) {
+  const V = global.WealthPathValidation;
+  const MAX_CACHE_ENTRIES = 3;
+  const cache = new Map();
+  const cacheMetrics = { hits: 0, misses: 0, preparations: 0 };
 
-/**
- * Parametri GBM annuali per ciascuna asset class.
- * Puoi modificare questi valori in base alle tue ipotesi di rendimento e
- * volatilità nel lungo periodo.
- * Si ipotizza di rendere queste impostazioni modificambili in una futura sezione "impostazioni avanzate"
- */
-const gbmParams = {
-  azionarioGlobale:   { muAnn: 0.07,  sigmaAnn: 0.15 }, // 7% rendimento atteso, 15% vol annua
-  obblGovEU10:        { muAnn: 0.02,  sigmaAnn: 0.05 },
-  obblGovEU3:         { muAnn: 0.015, sigmaAnn: 0.03 },
-  obblEUInflLinked:   { muAnn: 0.02,  sigmaAnn: 0.04 },
-  obblCorporate:      { muAnn: 0.03,  sigmaAnn: 0.07 },
-  materiePrime:       { muAnn: 0.04,  sigmaAnn: 0.20 },
-  oro:                { muAnn: 0.03,  sigmaAnn: 0.18 }
-};
-
-const defaultMacroDriftConfig = {
-  inflationAlpha: 0.5,
-  policyRateAlpha: 0.5,
-  realRateAlpha: 0.25,
-};
-
-/**
- * Generatore di variabili N(0,1) con metodo Box–Muller.
- * Ritorna un numero casuale z ~ Normale(0,1).
- */
-function rngNormal() {
-  const random = window.randomSeedManager?.random
-    ? () => window.randomSeedManager.random()
-    : Math.random;
-  let u1 = random();
-  let u2 = random();
-  let z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-  return z;
-}
-
-/**
- * Restituisce il moltiplicatore mensile per una data assetClass usando il
- * modello GBM.
- *
- * Se per l'assetClass non sono definiti parametri in gbmParams, ritorna 1
- * (niente rendimento).
- */
-function gbmMonthlyMultiplier(assetClass, options = {}) {
-  const p = gbmParams[assetClass];
-  if (!p) return 1;
-
-  const dt = 1.0 / 12.0; // passo temporale: 1 mese
-  const sigma = p.sigmaAnn;
-  const {
-    macroState,
-    sensitivitiesForAsset = {},
-    enableMacroScenario = false,
-    macroDriftConfig = {},
-  } = options || {};
-
-  const { inflationBeta = 0, policyRateBeta = 0, realRateBeta = 0 } = sensitivitiesForAsset || {};
-  const { inflationAlpha, policyRateAlpha, realRateAlpha } = {
-    ...defaultMacroDriftConfig,
-    ...macroDriftConfig,
-  };
-
-  let mu = p.muAnn;
-
-  if (enableMacroScenario && macroState) {
-    const inflationImpact = (macroState.inflation ?? 0) * inflationBeta * inflationAlpha;
-    const policyRateImpact = (macroState.policyRate ?? 0) * policyRateBeta * policyRateAlpha;
-    const realRateValue = macroState.realRate ?? ((macroState.policyRate ?? 0) - (macroState.inflation ?? 0));
-    const realRateImpact = realRateValue * realRateBeta * realRateAlpha;
-
-    mu += inflationImpact + policyRateImpact + realRateImpact;
+  function percentileFromSorted(values, percentile) {
+    if (!values.length) return 0;
+    const index = (percentile / 100) * (values.length - 1);
+    const lower = Math.floor(index);
+    const upper = Math.ceil(index);
+    if (lower === upper) return values[lower];
+    return values[lower] * (1 - (index - lower)) + values[upper] * (index - lower);
   }
 
-  const z = rngNormal();
-  const logReturn = (mu - 0.5 * sigma * sigma) * dt + sigma * Math.sqrt(dt) * z;
-
-  return Math.exp(logReturn); // es. 1.02 = +2%
-}
-
-/**
- * Simula un singolo percorso di portafoglio con GBM.
- *
- * options = {
- *   allocation,              // oggetto { azionarioGlobale: 30, ... } che somma a 100
- *   initialInvestment,       // capitale iniziale
- *   monthlyContribution,     // PAC mensile
- *   timeHorizonYears,        // orizzonte in anni
- *   rebalanceEveryMonths     // opzionale, es. 12 per ribilanciamento annuale, null/0 per disattivare
- * }
- *
- * Ritorna un array di numeri:
- *   [valoreMese0, valoreMese1, ..., valoreMeseN]
- */
-function simulatePortfolioPathGBM(options) {
-  const {
-    allocation,
-    initialInvestment,
-    monthlyContribution,
-    timeHorizonYears,
-    rebalanceEveryMonths = 12
-  } = options;
-
-  const months = Math.round(timeHorizonYears * 12);
-  const assetClasses = Object.keys(allocation);
-
-  // Inizializza il portafoglio per assetClass
-  let portfolio = {};
-  assetClasses.forEach(asset => {
-    const weight = allocation[asset] / 100;
-    portfolio[asset] = initialInvestment * weight;
-  });
-
-  const valuesByMonth = [];
-
-  for (let m = 0; m <= months; m++) {
-    // 1) Valore totale all'inizio del mese
-    let totalValue = 0;
-    assetClasses.forEach(asset => {
-      totalValue += portfolio[asset];
-    });
-    valuesByMonth.push(totalValue);
-
-    // Se siamo all'ultimo mese non proseguiamo oltre
-    if (m === months) break;
-
-    // 2) Aggiungi contributo mensile secondo allocation
-    if (monthlyContribution > 0) {
-      assetClasses.forEach(asset => {
-        const weight = allocation[asset] / 100;
-        portfolio[asset] += monthlyContribution * weight;
-      });
-    }
-
-    // 3) Ribilanciamento opzionale
-    if (rebalanceEveryMonths && rebalanceEveryMonths > 0 && m > 0 && (m % rebalanceEveryMonths === 0)) {
-      let currentTotal = 0;
-      assetClasses.forEach(asset => {
-        currentTotal += portfolio[asset];
-      });
-      assetClasses.forEach(asset => {
-        const weight = allocation[asset] / 100;
-        portfolio[asset] = currentTotal * weight;
-      });
-    }
-
-    // 4) Applica i rendimenti GBM per questo mese
-    assetClasses.forEach(asset => {
-      const multiplier = gbmMonthlyMultiplier(asset);
-      portfolio[asset] *= multiplier;
-    });
+  function formatCompact(value) {
+    if (Math.abs(value) >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+    if (Math.abs(value) >= 1000) return `${(value / 1000).toFixed(0)}k`;
+    return `${Math.round(value)}`;
   }
 
-  return valuesByMonth;
-}
-
-/**
- * Funzione di supporto per il calcolo dei percentili su un array ordinato.
- * arr  -> array di numeri ORDINATO in senso crescente
- * p    -> percentile desiderato (0–100)
- */
-function percentileFromSorted(arr, p) {
-  if (!arr.length) return null;
-  const index = (p / 100) * (arr.length - 1);
-  const lower = Math.floor(index);
-  const upper = Math.ceil(index);
-  if (lower === upper) return arr[lower];
-  const weight = index - lower;
-  return arr[lower] * (1 - weight) + arr[upper] * weight;
-}
-
-/**
- * Esegue una simulazione Monte Carlo GBM con N scenari.
- *
- * options = {
- *   allocation,
- *   initialInvestment,
- *   monthlyContribution,
- *   timeHorizonYears,
- *   rebalanceEveryMonths,
- *   nScenarios           // quante simulazioni (es. 500 o 1000)
- * }
- *
- * Ritorna:
- * {
- *   paths: [ [..valoriMese..], [..valoriMese..], ... ],
- *   finalValues: [v1, v2, ...],
- *   stats: {
- *     meanFinal,
- *     medianFinal,
- *     p5,
- *     p25,
- *     p75,
- *     p95
- *   }
- * }
- */
-function runMonteCarloGBM(options) {
-  const {
-    allocation,
-    initialInvestment,
-    monthlyContribution,
-    timeHorizonYears,
-    rebalanceEveryMonths = 12,
-    nScenarios = 1000
-  } = options;
-
-  const paths = [];
-  const finalValues = [];
-
-  for (let i = 0; i < nScenarios; i++) {
-    const path = simulatePortfolioPathGBM({
-      allocation,
-      initialInvestment,
-      monthlyContribution,
-      timeHorizonYears,
-      rebalanceEveryMonths
+  function buildHistogram(values) {
+    const data = Array.from(values || []).filter(Number.isFinite);
+    if (!data.length) return { labels: [], counts: [] };
+    let min = Infinity;
+    let max = -Infinity;
+    data.forEach((value) => {
+      min = Math.min(min, value);
+      max = Math.max(max, value);
     });
-    paths.push(path);
-    finalValues.push(path[path.length - 1]);
+    const bins = Math.max(5, Math.min(40, Math.round(Math.sqrt(data.length))));
+    if (min === max) return { labels: [formatCompact(min)], counts: [data.length] };
+    const width = (max - min) / bins;
+    const counts = Array.from({ length: bins }, () => 0);
+    data.forEach((value) => { counts[Math.min(bins - 1, Math.floor((value - min) / width))] += 1; });
+    const labels = counts.map((_, index) => `${formatCompact(min + index * width)}-${formatCompact(min + (index + 1) * width)}`);
+    return { labels, counts };
   }
 
-  // Calcolo statistiche sui valori finali
-  const sorted = [...finalValues].sort((a, b) => a - b);
-  const meanFinal = finalValues.reduce((a, b) => a + b, 0) / finalValues.length;
-
-  const medianFinal = percentileFromSorted(sorted, 50);
-  const p5         = percentileFromSorted(sorted, 5);
-  const p25        = percentileFromSorted(sorted, 25);
-  const p75        = percentileFromSorted(sorted, 75);
-  const p95        = percentileFromSorted(sorted, 95);
-
-  return {
-    paths,
-    finalValues,
-    stats: {
-      meanFinal,
-      medianFinal,
-      p5,
-      p25,
-      p75,
-      p95
+  function aggregateBands(paths, contributions, targetCapital) {
+    const months = paths[0] ? paths[0].length : 0;
+    const sample = new Float64Array(paths.length);
+    const bands = { labels: [], p5: [], p25: [], p50: [], p75: [], p95: [], contributions, target: [] };
+    for (let month = 0; month < months; month += 1) {
+      for (let scenario = 0; scenario < paths.length; scenario += 1) sample[scenario] = paths[scenario][month];
+      sample.sort();
+      bands.labels.push(`M${month}`);
+      bands.p5.push(percentileFromSorted(sample, 5));
+      bands.p25.push(percentileFromSorted(sample, 25));
+      bands.p50.push(percentileFromSorted(sample, 50));
+      bands.p75.push(percentileFromSorted(sample, 75));
+      bands.p95.push(percentileFromSorted(sample, 95));
+      bands.target.push(targetCapital > 0 ? targetCapital : null);
     }
-  };
-}
+    return bands;
+  }
+
+  function cacheKey(settings) {
+    const marketModel = {
+      schemaVersion: global.marketData.schemaVersion,
+      annualizedReturns: global.marketData.annualizedReturns,
+      annualizedVolatility: global.marketData.annualizedVolatility,
+      fixedMonthlyMultipliers: global.marketData.fixedMonthlyMultipliers,
+      correlationMatrix: global.marketData.correlationMatrix,
+      macroDriftConfig: global.marketData.macroDriftConfig,
+      macroScenario: global.marketData.macroScenarioPresets[settings.selectedMacroScenario]
+    };
+    return JSON.stringify({ settings, marketModel });
+  }
+
+  function readCache(key) {
+    if (!cache.has(key)) return null;
+    const result = cache.get(key);
+    cache.delete(key);
+    cache.set(key, result);
+    cacheMetrics.hits += 1;
+    return { ...result, performance: { ...result.performance, cacheHit: true } };
+  }
+
+  function writeCache(key, result) {
+    cache.set(key, result);
+    while (cache.size > MAX_CACHE_ENTRIES) cache.delete(cache.keys().next().value);
+  }
+
+  function runMonteCarloGBM(options) {
+    options = options || {};
+    const settings = V.sanitizeSettings({
+      ...options,
+      monteCarloScenarios: options.nScenarios !== undefined ? options.nScenarios : options.monteCarloScenarios
+    });
+    const validation = V.validateSettings(settings);
+    if (!validation.valid) throw new Error(validation.errors.join(" "));
+    const key = cacheKey(settings);
+    const cached = readCache(key);
+    if (cached) return cached;
+    cacheMetrics.misses += 1;
+    const startedAt = global.performance && typeof global.performance.now === "function" ? global.performance.now() : Date.now();
+    const prepared = global.prepareSimulation(settings);
+    cacheMetrics.preparations += 1;
+    const paths = new Array(settings.monteCarloScenarios);
+    const finalValues = new Float64Array(settings.monteCarloScenarios);
+    const totalWithdrawals = new Float64Array(settings.monteCarloScenarios);
+    const totalRebalanceTaxes = new Float64Array(settings.monteCarloScenarios);
+    const totalLombardInterest = new Float64Array(settings.monteCarloScenarios);
+    const marginCalls = new Uint8Array(settings.monteCarloScenarios);
+    for (let scenario = 0; scenario < settings.monteCarloScenarios; scenario += 1) {
+      const random = global.createPrng((settings.seed + scenario * 7919) >>> 0);
+      const path = global.simulateNominalPath(prepared, random);
+      paths[scenario] = path.nominalValues;
+      finalValues[scenario] = path.finalValue;
+      totalWithdrawals[scenario] = path.totalWithdrawals;
+      totalRebalanceTaxes[scenario] = path.totalRebalanceTaxes;
+      totalLombardInterest[scenario] = path.totalLombardInterest;
+      marginCalls[scenario] = path.marginCallOccurred ? 1 : 0;
+    }
+    const sorted = finalValues.slice();
+    sorted.sort();
+    let sumFinal = 0;
+    let sumWithdrawals = 0;
+    let sumTaxes = 0;
+    let sumLombardInterest = 0;
+    let marginCallCount = 0;
+    let successCount = 0;
+    let lossCount = 0;
+    const contributions = global.calculateContributionsSeries(settings.initialInvestment, settings.monthlyContribution, prepared.months);
+    const totalContributed = contributions[contributions.length - 1] || 0;
+    const target = settings.targetCapital;
+    finalValues.forEach((value, scenario) => {
+      sumFinal += value;
+      sumWithdrawals += totalWithdrawals[scenario];
+      sumTaxes += totalRebalanceTaxes[scenario];
+      sumLombardInterest += totalLombardInterest[scenario];
+      marginCallCount += marginCalls[scenario];
+      if (target > 0 && value >= target) successCount += 1;
+      if (value + totalWithdrawals[scenario] < totalContributed) lossCount += 1;
+    });
+    const median = percentileFromSorted(sorted, 50);
+    const stats = {
+      meanFinal: sumFinal / finalValues.length,
+      meanTotalWithdrawals: sumWithdrawals / finalValues.length,
+      meanRebalanceTaxes: sumTaxes / finalValues.length,
+      meanLombardInterest: sumLombardInterest / finalValues.length,
+      marginCallProbability: marginCallCount / finalValues.length,
+      medianFinal: median,
+      p5: percentileFromSorted(sorted, 5),
+      p25: percentileFromSorted(sorted, 25),
+      p75: percentileFromSorted(sorted, 75),
+      p95: percentileFromSorted(sorted, 95),
+      targetProbability: target > 0 ? successCount / finalValues.length : 0,
+      lossProbability: lossCount / finalValues.length,
+      totalContributed,
+      medianMinusContributed: median - totalContributed
+    };
+    const elapsedMs = (global.performance && typeof global.performance.now === "function" ? global.performance.now() : Date.now()) - startedAt;
+    const result = {
+      pathsCount: settings.monteCarloScenarios,
+      finalValues: Array.from(finalValues),
+      stats,
+      bands: aggregateBands(paths, contributions, target),
+      histogram: buildHistogram(finalValues),
+      seed: settings.seed,
+      performance: { elapsedMs, cacheHit: false, preparedSimulations: 1 }
+    };
+    writeCache(key, result);
+    return result;
+  }
+
+  function clearCache() {
+    cache.clear();
+    cacheMetrics.hits = 0;
+    cacheMetrics.misses = 0;
+    cacheMetrics.preparations = 0;
+  }
+
+  function getCacheStats() {
+    return { size: cache.size, maxEntries: MAX_CACHE_ENTRIES, ...cacheMetrics };
+  }
+
+  global.percentileFromSorted = percentileFromSorted;
+  global.runMonteCarloGBM = runMonteCarloGBM;
+  global.MonteCarloGBM = { runMonteCarloGBM, percentileFromSorted, buildHistogram, aggregateBands, clearCache, getCacheStats };
+})(window);

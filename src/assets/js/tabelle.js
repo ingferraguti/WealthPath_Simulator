@@ -1,166 +1,53 @@
-//TABELLE
+(function (global) {
+  const euroFormatter = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+  function euro(value) { return euroFormatter.format(Number(value) || 0); }
+  function percent(value) { return `${((Number(value) || 0) * 100).toFixed(2)}%`; }
+  function ltv(value) { return Number.isFinite(value) ? percent(value) : "n.d."; }
+  function tableMarkup(headers, rows) {
+    return `<thead><tr>${headers.map((header) => `<th scope="col">${header}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody>`;
+  }
 
+  function renderMonthlyTable(simulation) {
+    const table = document.getElementById("monthlyTable");
+    if (!table) return;
+    const hasLombard = Boolean(simulation.lombardEnabled);
+    const rows = new Array(simulation.nominalValues.length);
+    for (let month = 0; month < simulation.nominalValues.length; month += 1) {
+      const value = simulation.nominalValues[month];
+      const previous = month > 0 ? simulation.nominalValues[month - 1] : value;
+      const contribution = month > 0 ? simulation.contributions[month] - simulation.contributions[month - 1] : 0;
+      const withdrawal = month > 0 ? simulation.withdrawals[month] - simulation.withdrawals[month - 1] : 0;
+      const tax = month > 0 ? simulation.rebalanceTaxes[month] - simulation.rebalanceTaxes[month - 1] : 0;
+      const monthlyPerformance = month > 0 && previous + contribution - withdrawal > 0 ? (value / (previous + contribution - withdrawal)) - 1 : 0;
+      const lombardCells = hasLombard ? `<td>${euro(simulation.lombardDebts[month])}</td><td>${ltv(simulation.lombardLtvs[month])}</td><td>${simulation.marginCalls[month] ? "<strong>Margin call</strong>" : "—"}</td>` : "";
+      rows[month] = `<tr class="${hasLombard && simulation.marginCalls[month] ? "table-danger" : ""}"><td>${month}</td><td>${euro(value)}</td><td>${euro(simulation.contributions[month])}</td><td>${euro(withdrawal)}</td><td>${euro(tax)}</td><td>${percent(monthlyPerformance)}</td>${lombardCells}</tr>`;
+    }
+    table.innerHTML = tableMarkup(["Mese", "Patrimonio netto", "Capitale versato", "Prelievo mese", "Tasse ribil.", "Performance mensile"].concat(hasLombard ? ["Debito Lombard", "LTV", "Stato"] : []), rows);
+  }
 
+  function renderAnnualTable(simulation) {
+    const table = document.getElementById("annualTable");
+    if (!table) return;
+    const hasLombard = Boolean(simulation.lombardEnabled);
+    const years = Math.floor((simulation.nominalValues.length - 1) / 12);
+    const rows = new Array(years);
+    for (let year = 1; year <= years; year += 1) {
+      const month = year * 12;
+      const previousMonth = (year - 1) * 12;
+      const value = simulation.nominalValues[month];
+      const annualReturns = global.PortfolioStatistics.monthlyReturns(simulation.nominalValues.slice(previousMonth, month + 1), simulation.contributions.slice(previousMonth, month + 1), simulation.withdrawals.slice(previousMonth, month + 1));
+      const annualReturn = annualReturns.reduce((growth, monthlyReturn) => growth * (1 + monthlyReturn), 1) - 1;
+      const marginCall = hasLombard && simulation.marginCalls.slice(previousMonth + 1, month + 1).some(Boolean);
+      const lombardCells = hasLombard ? `<td>${euro(simulation.lombardDebts[month])}</td><td>${ltv(simulation.lombardLtvs[month])}</td><td>${marginCall ? "<strong>Margin call</strong>" : "—"}</td>` : "";
+      rows[year - 1] = `<tr class="${marginCall ? "table-danger" : ""}"><td>${year}</td><td>${euro(value)}</td><td>${euro(simulation.contributions[month])}</td><td>${euro(simulation.withdrawals[month])}</td><td>${euro(simulation.rebalanceTaxes[month])}</td><td>${percent(annualReturn)}</td>${lombardCells}</tr>`;
+    }
+    table.innerHTML = tableMarkup(["Anno", "Patrimonio netto", "Capitale versato", "Prelievi cumulati", "Tasse ribil. cumulate", "Performance annua"].concat(hasLombard ? ["Debito Lombard", "LTV", "Stato"] : []), rows);
+  }
 
-function qaz(mese){
-	if(mese==0)return 0; 
-	return monthlyContribution;
-}
-
-
-
-function wsx(mese){
-
-        const portfolioState = getPortfolioState();
-
-        if (mese <= 0) {
-                return 'NO';
-        }
-
-        const previousValue = calculatePortfolioValue(portfolioState, mese - 1);
-        const currentValue = calculatePortfolioValue(portfolioState, mese);
-        const monthlyContributionAmount = qaz(mese);
-        const monthlyPerformanceAmount = currentValue - previousValue - monthlyContributionAmount;
-
-        if (monthlyPerformanceAmount > monthlyContributionAmount) return 'SI';
-
-        return 'NO';
-}
-
-function creaTabella(numeroMesi) {
-            // Pulisce il contenitore prima di generare una nuova tabella mensile
-            const tableContainer = document.getElementById('table-container');
-            if (!tableContainer) {
-                return;
-            }
-
-            const portfolioState = getPortfolioState();
-
-            tableContainer.innerHTML = '';
-
-            // Crea la tabella e l'intestazione
-            const table = document.createElement('table');
-            table.border = 1;
-            table.style.width = '100%';
-
-            const header = table.createTHead();
-            const headerRow = header.insertRow();
-            headerRow.insertCell().innerText = getLabel('ui.tableMonth');
-            headerRow.insertCell().innerText = getLabel('ui.tableValue');
-            headerRow.insertCell().innerText = getLabel('ui.tableContributions');
-                        headerRow.insertCell().innerText = getLabel('ui.tableMonthlyContribution');
-                        headerRow.insertCell().innerText = getLabel('ui.tableMonthlyIncrease');
-                        headerRow.insertCell().innerText = getLabel('ui.tableMonthlyPerformance');
-                        headerRow.insertCell().innerText = getLabel('ui.tableTotalPerformance');
-                        headerRow.insertCell().innerText = getLabel('ui.tablePerformanceVsContrib');
-			
-			
-
-            // Popola la tabella con i dati
-            const tbody = table.createTBody();
-            for (let mese = 0; mese <= numeroMesi; mese++) {
-                const row = tbody.insertRow();
-
-                const previousValue = calculatePortfolioValue(portfolioState, mese - 1);
-                const currentValue = calculatePortfolioValue(portfolioState, mese);
-                const monthlyContributionAmount = qaz(mese);
-                const investedCapital = calculateContribValue(portfolioState, mese);
-                const monthlyIncrease = currentValue - previousValue;
-                const monthlyPerformance = (((monthlyIncrease - monthlyContributionAmount) / previousValue) * 100).toFixed(2);
-
-                // Prima colonna: numero crescente del mese
-                row.insertCell().innerText = mese;
-
-                // Seconda colonna: risultato di funzione1(mese)
-                row.insertCell().innerText = euro.format(currentValue);
-
-                // Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = euro.format(investedCapital - portfolioState.initialInvestment);
-
-                                // Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = euro.format(monthlyContributionAmount);
-
-                                // Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = euro.format(monthlyIncrease);
-
-                                // Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = monthlyPerformance;
-				
-				// Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = (((currentValue / investedCapital)-1)*100).toFixed(2);
-				
-				row.insertCell().innerText = wsx(mese)  ;
-            }
-
-            // Aggiungi la tabella al contenitore esistente nel DOM
-            tableContainer.appendChild(table);
-        }
-		
-		
-		
-		
-		
-function creaTabella2(numeroAnni) {
-            // Pulisce il contenitore prima di generare una nuova tabella annuale
-            const annualTableContainer = document.getElementById('tablecontaineranno');
-            if (!annualTableContainer) {
-                return;
-            }
-
-            const portfolioState = getPortfolioState();
-
-            annualTableContainer.innerHTML = '';
-
-            // Crea la tabella e l'intestazione
-            const table2 = document.createElement('table');
-            table2.border = 1;
-            table2.style.width = '100%';
-
-            const header = table2.createTHead();
-            const headerRow = header.insertRow();
-            headerRow.insertCell().innerText = getLabel('ui.tableYear');
-            headerRow.insertCell().innerText = getLabel('ui.tableValue');
-            headerRow.insertCell().innerText = getLabel('ui.tableContributions');
-                        headerRow.insertCell().innerText = getLabel('ui.tableAnnualContribution');
-                        headerRow.insertCell().innerText = getLabel('ui.tableAnnualIncrease');
-                        headerRow.insertCell().innerText = getLabel('ui.tableAnnualPerformance');
-                        headerRow.insertCell().innerText = getLabel('ui.tableTotalPerformance');
-			
-			
-			
-			let  incremento=0;
-
-            // Popola la tabella con i dati
-            const tbody = table2.createTBody();
-            for (let mese = 0; mese <= numeroAnni; mese++) {
-                const row = tbody.insertRow();
-
-                // Prima colonna: numero crescente del mese
-                row.insertCell().innerText = mese;
-
-                // Seconda colonna: risultato di funzione1(mese)
-                row.insertCell().innerText = euro.format(calculatePortfolioValue(portfolioState, mese*12));
-
-                // Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = euro.format(calculateContribValue(portfolioState, mese*12) - portfolioState.initialInvestment);
-				
-				// Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = euro.format(qaz(mese)*12);
-				
-				// Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = euro.format( incremento =  calculatePortfolioValue(portfolioState, mese*12) - calculatePortfolioValue(portfolioState, (mese-1)*12 )   );
-				
-				// Terza colonna: risultato di performance annuale
-                row.insertCell().innerText = ( ( (incremento - (qaz(mese)*12)) / (calculatePortfolioValue(portfolioState, (mese-1)*12) ))*100  ).toFixed(2);
-				
-				// Terza colonna: risultato di funzione2(mese)
-                row.insertCell().innerText = (((calculatePortfolioValue(portfolioState, mese*12) / calculateContribValue(portfolioState, mese*12))-1)*100).toFixed(2);
-				
-				
-            }
-
-            // Aggiungi la tabella al contenitore esistente nel DOM
-            annualTableContainer.appendChild(table2);
-        }
-		
-		
+  function creaTabella() { if (global.currentSimulation) renderMonthlyTable(global.currentSimulation); }
+  function creaTabella2() { if (global.currentSimulation) renderAnnualTable(global.currentSimulation); }
+  global.renderMonthlyTable = renderMonthlyTable;
+  global.renderAnnualTable = renderAnnualTable;
+  global.creaTabella = creaTabella;
+  global.creaTabella2 = creaTabella2;
+})(window);

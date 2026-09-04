@@ -1,220 +1,65 @@
-/**
- * Macro scenario utilities
- * ------------------------
- * This module exposes helper functions to describe and expand high-level
- * macroeconomic regimes (inflation + policy rates) month by month without
- * altering the existing asset return logic.
- */
 (function (global) {
-  // Neutral baseline used for any month not covered by an explicit phase.
-  const defaultMacroPoint = {
-    inflation: 0.02, // Annualized inflation assumption (2%)
-    policyRate: 0.02, // Annualized policy rate assumption (2%)
-    regimeTag: "normal",
-  };
+  let selectedMacroScenario = global.marketData.defaults.selectedMacroScenario;
+  let enableMacroScenario = global.marketData.defaults.enableMacroAdjustments;
+  let macroScenarioByMonth = [];
 
-  // Preset macro scenarios exposed globally so the UI can swap between them.
-  // Each preset is a collection of phases describing the inflation/policy path.
-  function normalizeMacroScenarioPresets(rawPresets = {}) {
-    if (typeof rawPresets !== "object" || rawPresets === null) {
-      return {};
-    }
-
-    return Object.entries(rawPresets).reduce((acc, [key, preset]) => {
-      const macroPhases = Array.isArray(preset?.macroPhases)
-        ? preset.macroPhases.map(phase => ({ ...phase }))
-        : [];
-
-      acc[key] = {
-        label: preset?.label || key,
-        description: preset?.description,
-        macroPhases,
-      };
-
-      return acc;
-    }, {});
+  function interpolate(from, to, index, total) {
+    if (total <= 1) return Number(to);
+    return Number(from) + (Number(to) - Number(from)) * (index / (total - 1));
   }
-
-  const fallbackMacroScenarioPresets = {
-    baseline: {
-      label: "Scenario base",
-      description: "Profilo moderato con rialzi iniziali e successiva disinflazione.",
-      macroPhases: [
-        {
-          name: "Baseline normal",
-          startMonth: 0,
-          duration: 12,
-          inflationFrom: 0.02,
-          inflationTo: 0.0225,
-          rateFrom: 0.02,
-          rateTo: 0.0225,
-          regimeTag: "normal",
-        },
-        {
-          name: "Inflation hike",
-          startMonth: 12,
-          duration: 12,
-          inflationFrom: 0.0225,
-          inflationTo: 0.07,
-          rateFrom: 0.0225,
-          rateTo: 0.05,
-          regimeTag: "inflation_hike",
-        },
-        {
-          name: "Disinflation reset",
-          startMonth: 24,
-          duration: 12,
-          inflationFrom: 0.07,
-          inflationTo: 0.025,
-          rateFrom: 0.05,
-          rateTo: 0.03,
-          regimeTag: "disinflation",
-        },
-      ],
-    },
-    stagflation: {
-      label: "Stagflazione moderata",
-      description: "Inflazione appiccicosa e tassi elevati per un periodo prolungato.",
-      macroPhases: [
-        {
-          name: "Sticky inflation plateau",
-          startMonth: 0,
-          duration: 18,
-          inflationFrom: 0.05,
-          inflationTo: 0.06,
-          rateFrom: 0.04,
-          rateTo: 0.055,
-          regimeTag: "stagflation_plateau",
-        },
-        {
-          name: "Late disinflation",
-          startMonth: 18,
-          duration: 12,
-          inflationFrom: 0.06,
-          inflationTo: 0.03,
-          rateFrom: 0.055,
-          rateTo: 0.035,
-          regimeTag: "late_disinflation",
-        },
-      ],
-    },
-    neutral: {
-      label: "Neutro (flat)",
-      description: "Profilo piatto usato come fallback quando gli scenari macro sono disattivati.",
-      macroPhases: [],
-    },
-  };
-
-  const normalizedPresets = normalizeMacroScenarioPresets(
-    global.marketData?.macroScenarioPresets || fallbackMacroScenarioPresets
-  );
-
-  const macroScenarioPresets = {
-    ...fallbackMacroScenarioPresets,
-    ...normalizedPresets,
-  };
-
-  function cloneMacroPhases(phases = []) {
-    return phases.map(phase => ({ ...phase }));
-  }
-
-  /**
-   * Performs a simple linear interpolation between two values.
-   *
-   * @param {number} from - Starting value.
-   * @param {number} to - Ending value.
-   * @param {number} t - Interpolation factor between 0 and 1.
-   * @returns {number} Interpolated value.
-   */
-  function lerp(from, to, t) {
-    return from + (to - from) * t;
-  }
-
-  /**
-   * Expands macro phases into a month-by-month snapshot for the given horizon.
-   *
-   * Assumptions:
-   * - Months are zero-based (month 0 = first month of the simulation).
-   * - Inflation and policy rates are annualized; interpolation is linear.
-   * - Real rate is computed as a simple spread: policyRate - inflation.
-   *
-   * @param {Array<Object>} macroPhases - List of macro phases with the shape:
-   *   { name, startMonth, duration, inflationFrom, inflationTo, rateFrom, rateTo, regimeTag }
-   * @param {number} totalMonths - Horizon in months (inclusive of month 0).
-   * @returns {Array<Object>} macroByMonth - Array sized totalMonths + 1 with
-   *   entries { month, inflation, policyRate, realRate, regimeTag }.
-   */
-  function buildMacroByMonth(macroPhases = [], totalMonths = 0) {
-    const months = Math.max(0, Math.round(totalMonths));
-    const macroByMonth = Array.from({ length: months + 1 }, (_, month) => ({
-      month,
-      inflation: defaultMacroPoint.inflation,
-      policyRate: defaultMacroPoint.policyRate,
-      realRate: defaultMacroPoint.policyRate - defaultMacroPoint.inflation,
-      regimeTag: defaultMacroPoint.regimeTag,
-    }));
-
-    macroPhases.forEach(phase => {
-      const {
-        startMonth = 0,
-        duration = 0,
-        inflationFrom = defaultMacroPoint.inflation,
-        inflationTo = defaultMacroPoint.inflation,
-        rateFrom = defaultMacroPoint.policyRate,
-        rateTo = defaultMacroPoint.policyRate,
-        regimeTag = defaultMacroPoint.regimeTag,
-      } = phase || {};
-
-      if (duration <= 0 || startMonth > months) {
-        return;
-      }
-
-      const endMonth = Math.min(months, startMonth + duration - 1);
-      const span = Math.max(1, endMonth - startMonth);
-
-      for (let month = startMonth; month <= endMonth; month++) {
-        const progress = (month - startMonth) / span;
-        const inflation = lerp(inflationFrom, inflationTo, progress);
-        const policyRate = lerp(rateFrom, rateTo, progress);
-
-        macroByMonth[month] = {
-          month,
-          inflation,
-          policyRate,
-          realRate: policyRate - inflation,
-          regimeTag,
-        };
+  function buildMacroScenario(presetKey, months) {
+    const preset = global.marketData.macroScenarioPresets[presetKey] || global.marketData.macroScenarioPresets.neutral;
+    const safeMonths = Math.max(0, Math.round(Number(months) || 0));
+    const defaultPoint = { inflation: 0.02, policyRate: 0.025, realRate: 0.005, regimeTag: "neutral" };
+    const rows = Array.from({ length: safeMonths + 1 }, () => null);
+    preset.macroPhases.forEach((phase) => {
+      for (let i = 0; i < phase.duration; i += 1) {
+        const month = phase.startMonth + i;
+        if (month > safeMonths) break;
+        const inflation = interpolate(phase.inflationFrom, phase.inflationTo, i, phase.duration);
+        const policyRate = interpolate(phase.rateFrom, phase.rateTo, i, phase.duration);
+        rows[month] = { month, inflation, policyRate, realRate: policyRate - inflation, regimeTag: phase.regimeTag };
       }
     });
-
-    return macroByMonth;
-  }
-
-  /**
-   * Logs a preview of the macro scenario to the console for quick inspection.
-   *
-   * @param {Array<Object>} macroByMonth - Output of buildMacroByMonth.
-   * @param {number} monthsToShow - How many initial months to display.
-   */
-  function logMacroScenarioPreview(macroByMonth, monthsToShow = 12) {
-    if (!Array.isArray(macroByMonth)) {
-      console.warn("logMacroScenarioPreview expects an array produced by buildMacroByMonth.");
-      return;
+    for (let month = 0; month < rows.length; month += 1) {
+      if (!rows[month]) rows[month] = { ...(month > 0 ? rows[month - 1] : defaultPoint), month };
     }
-
-    const preview = macroByMonth.slice(0, monthsToShow).map(point => ({
-      month: point.month,
-      inflation: Number(point.inflation).toFixed(4),
-      policyRate: Number(point.policyRate).toFixed(4),
-      realRate: Number(point.realRate).toFixed(4),
-      regimeTag: point.regimeTag,
-    }));
-
-    console.table(preview);
+    return rows;
   }
-
-  global.buildMacroByMonth = buildMacroByMonth;
-  global.logMacroScenarioPreview = logMacroScenarioPreview;
-  global.macroScenarioPresets = macroScenarioPresets;
-  global.cloneMacroPhases = cloneMacroPhases;
+  function rebuildMacroScenario(months) {
+    macroScenarioByMonth = buildMacroScenario(selectedMacroScenario, months || 0);
+    global.macroScenarioByMonth = macroScenarioByMonth;
+    return macroScenarioByMonth;
+  }
+  function getMacroState(month) {
+    return macroScenarioByMonth[Math.min(month, macroScenarioByMonth.length - 1)] || null;
+  }
+  function setMacroScenario(key) {
+    if (!global.marketData.macroScenarioPresets[key]) return false;
+    selectedMacroScenario = key;
+    global.selectedMacroScenario = selectedMacroScenario;
+    return true;
+  }
+  function setMacroEnabled(enabled) {
+    enableMacroScenario = Boolean(enabled);
+    global.enableMacroScenario = enableMacroScenario;
+  }
+  function handleMacroScenarioChange(value) {
+    if (setMacroScenario(value) && typeof global.renderDashboard === "function") global.renderDashboard({ rerunMonteCarlo: false });
+  }
+  function toggleMacroScenario(checked) {
+    setMacroEnabled(checked);
+    if (typeof global.renderDashboard === "function") global.renderDashboard({ rerunMonteCarlo: false });
+  }
+  global.selectedMacroScenario = selectedMacroScenario;
+  global.enableMacroScenario = enableMacroScenario;
+  global.macroScenarioByMonth = macroScenarioByMonth;
+  global.macroScenarioPresets = global.marketData.macroScenarioPresets;
+  global.buildMacroScenario = buildMacroScenario;
+  global.rebuildMacroScenario = rebuildMacroScenario;
+  global.getMacroState = getMacroState;
+  global.setMacroScenario = setMacroScenario;
+  global.setMacroEnabled = setMacroEnabled;
+  global.handleMacroScenarioChange = handleMacroScenarioChange;
+  global.toggleMacroScenario = toggleMacroScenario;
 })(window);
